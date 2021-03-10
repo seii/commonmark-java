@@ -2,6 +2,7 @@ package org.commonmark.parser;
 
 import org.commonmark.Extension;
 import org.commonmark.internal.DocumentParser;
+import org.commonmark.internal.DocumentRoundtripParser;
 import org.commonmark.internal.InlineParserContextImpl;
 import org.commonmark.internal.InlineParserImpl;
 import org.commonmark.node.Block;
@@ -42,8 +43,13 @@ public class Parser {
     private final List<PostProcessor> postProcessors;
     private final IncludeSourceSpans includeSourceSpans;
 
-    private Parser(Builder builder) {
-        this.blockParserFactories = DocumentParser.calculateBlockParserFactories(builder.blockParserFactories, builder.enabledBlockTypes);
+    private Parser(Builder builder, boolean isRoundtrip) {
+        if(isRoundtrip) {
+            this.blockParserFactories = DocumentRoundtripParser.calculateBlockParserFactories(builder.blockParserFactories, builder.enabledBlockTypes);
+        }else {
+            this.blockParserFactories = DocumentParser.calculateBlockParserFactories(builder.blockParserFactories, builder.enabledBlockTypes);
+        }
+        
         this.inlineParserFactory = builder.getInlineParserFactory();
         this.postProcessors = builder.postProcessors;
         this.delimiterProcessors = builder.delimiterProcessors;
@@ -53,6 +59,10 @@ public class Parser {
         // detect as soon as possible.
         this.inlineParserFactory.create(new InlineParserContextImpl(delimiterProcessors,
                 Collections.<String, LinkReferenceDefinition>emptyMap()));
+    }
+    
+    private Parser(Builder builder) {
+        this(builder, false);
     }
 
     /**
@@ -64,6 +74,22 @@ public class Parser {
         return new Builder();
     }
 
+    public Node parse(String input, boolean isRoundtrip) {
+        if (input == null) {
+            throw new NullPointerException("input must not be null");
+        }
+        
+        if(!isRoundtrip) {
+            DocumentParser documentParser = createDocumentParser();
+            Node document = documentParser.parse(input);
+            return postProcess(document);
+        }else {
+            DocumentRoundtripParser documentParser = createDocumentRoundtripParser();
+            Node document = documentParser.parse(input);
+            return postProcess(document);
+        }
+    }
+    
     /**
      * Parse the specified input text into a tree of nodes.
      * <p>
@@ -73,14 +99,25 @@ public class Parser {
      * @return the root node
      */
     public Node parse(String input) {
+        return parse(input, false);
+    }
+
+    public Node parseReader(Reader input, boolean isRoundtrip) throws IOException {
         if (input == null) {
             throw new NullPointerException("input must not be null");
         }
-        DocumentParser documentParser = createDocumentParser();
-        Node document = documentParser.parse(input);
-        return postProcess(document);
-    }
 
+        if(!isRoundtrip) {
+            DocumentParser documentParser = createDocumentParser();
+            Node document = documentParser.parse(input);
+            return postProcess(document);
+        }else {
+            DocumentRoundtripParser documentParser = createDocumentRoundtripParser();
+            Node document = documentParser.parse(input);
+            return postProcess(document);
+        }
+    }
+    
     /**
      * Parse the specified reader into a tree of nodes. The caller is responsible for closing the reader.
      * <pre><code>
@@ -100,17 +137,15 @@ public class Parser {
      * @throws IOException when reading throws an exception
      */
     public Node parseReader(Reader input) throws IOException {
-        if (input == null) {
-            throw new NullPointerException("input must not be null");
-        }
-
-        DocumentParser documentParser = createDocumentParser();
-        Node document = documentParser.parse(input);
-        return postProcess(document);
+        return parseReader(input, false);
     }
 
     private DocumentParser createDocumentParser() {
         return new DocumentParser(blockParserFactories, inlineParserFactory, delimiterProcessors, includeSourceSpans);
+    }
+    
+    private DocumentRoundtripParser createDocumentRoundtripParser() {
+        return new DocumentRoundtripParser(blockParserFactories, inlineParserFactory, delimiterProcessors, includeSourceSpans);
     }
 
     private Node postProcess(Node document) {
@@ -136,6 +171,13 @@ public class Parser {
          */
         public Parser build() {
             return new Parser(this);
+        }
+        
+        /**
+         * @return the configured roundtrip {@link Parser}
+         */
+        public Parser buildRoundtrip() {
+            return new Parser(this, true);
         }
 
         /**

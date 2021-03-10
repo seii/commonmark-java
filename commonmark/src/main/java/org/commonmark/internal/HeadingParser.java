@@ -19,6 +19,14 @@ public class HeadingParser extends AbstractBlockParser {
         block.setLevel(level);
         this.content = content;
     }
+    
+    public HeadingParser(int level, SourceLines content, String preSymbol, String postSymbol, int numEndingSymbol, char symbolType) {
+        this(level, content);
+        block.setWhitespacePreStart(preSymbol);
+        block.setWhitespacePostEnd(postSymbol);
+        block.setNumEndingSymbol(numEndingSymbol);
+        block.setSymbolType(symbolType);
+    }
 
     @Override
     public Block getBlock() {
@@ -38,6 +46,34 @@ public class HeadingParser extends AbstractBlockParser {
 
     public static class Factory extends AbstractBlockParserFactory {
 
+//        @Override
+//        public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
+//            if (state.getIndent() >= Parsing.CODE_BLOCK_INDENT) {
+//                return BlockStart.none();
+//            }
+//
+//            SourceLine line = state.getLine();
+//            int nextNonSpace = state.getNextNonSpaceIndex();
+//            if (line.getContent().charAt(nextNonSpace) == '#') {
+//                HeadingParser atxHeading = getAtxHeading(line.substring(nextNonSpace, line.getContent().length()));
+//                if (atxHeading != null) {
+//                    return BlockStart.of(atxHeading).atIndex(line.getContent().length());
+//                }
+//            }
+//
+//            int setextHeadingLevel = getSetextHeadingLevel(line.getContent(), nextNonSpace);
+//            if (setextHeadingLevel > 0) {
+//                SourceLines paragraph = matchedBlockParser.getParagraphLines();
+//                if (!paragraph.isEmpty()) {
+//                    return BlockStart.of(new HeadingParser(setextHeadingLevel, paragraph))
+//                            .atIndex(line.getContent().length())
+//                            .replaceActiveBlockParser();
+//                }
+//            }
+//
+//            return BlockStart.none();
+//        }
+        
         @Override
         public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
             if (state.getIndent() >= Parsing.CODE_BLOCK_INDENT) {
@@ -47,7 +83,7 @@ public class HeadingParser extends AbstractBlockParser {
             SourceLine line = state.getLine();
             int nextNonSpace = state.getNextNonSpaceIndex();
             if (line.getContent().charAt(nextNonSpace) == '#') {
-                HeadingParser atxHeading = getAtxHeading(line.substring(nextNonSpace, line.getContent().length()));
+                HeadingParser atxHeading = getAtxHeading(line);
                 if (atxHeading != null) {
                     return BlockStart.of(atxHeading).atIndex(line.getContent().length());
                 }
@@ -57,7 +93,7 @@ public class HeadingParser extends AbstractBlockParser {
             if (setextHeadingLevel > 0) {
                 SourceLines paragraph = matchedBlockParser.getParagraphLines();
                 if (!paragraph.isEmpty()) {
-                    return BlockStart.of(new HeadingParser(setextHeadingLevel, paragraph))
+                    return BlockStart.of(getSetextHeading(setextHeadingLevel, paragraph, line.getContent(), nextNonSpace))
                             .atIndex(line.getContent().length())
                             .replaceActiveBlockParser();
                 }
@@ -67,12 +103,87 @@ public class HeadingParser extends AbstractBlockParser {
         }
     }
 
+//    // spec: An ATX heading consists of a string of characters, parsed as inline content, between an opening sequence of
+//    // 1–6 unescaped # characters and an optional closing sequence of any number of unescaped # characters. The opening
+//    // sequence of # characters must be followed by a space or by the end of line. The optional closing sequence of #s
+//    // must be preceded by a space and may be followed by spaces only.
+//    private static HeadingParser getAtxHeading(SourceLine line) {
+//        Scanner scanner = Scanner.of(SourceLines.of(line));
+//        int level = scanner.matchMultiple('#');
+//
+//        if (level == 0 || level > 6) {
+//            return null;
+//        }
+//
+//        if (!scanner.hasNext()) {
+//            // End of line after markers is an empty heading
+//            return new HeadingParser(level, SourceLines.empty());
+//        }
+//
+//        char next = scanner.peek();
+//        if (!(next == ' ' || next == '\t')) {
+//            return null;
+//        }
+//
+//        scanner.whitespace();
+//        Position start = scanner.position();
+//        Position end = start;
+//        boolean hashCanEnd = true;
+//
+//        while (scanner.hasNext()) {
+//            char c = scanner.peek();
+//            switch (c) {
+//                case '#':
+//                    if (hashCanEnd) {
+//                        scanner.matchMultiple('#');
+//                        int whitespace = scanner.whitespace();
+//                        // If there's other characters, the hashes and spaces were part of the heading
+//                        if (scanner.hasNext()) {
+//                            end = scanner.position();
+//                        }
+//                        hashCanEnd = whitespace > 0;
+//                    } else {
+//                        scanner.next();
+//                        end = scanner.position();
+//                    }
+//                    break;
+//                case ' ':
+//                case '\t':
+//                    hashCanEnd = true;
+//                    scanner.next();
+//                    break;
+//                default:
+//                    hashCanEnd = false;
+//                    scanner.next();
+//                    end = scanner.position();
+//            }
+//        }
+//
+//        SourceLines source = scanner.getSource(start, end);
+//        String content = source.getContent();
+//        if (content.isEmpty()) {
+//            return new HeadingParser(level, SourceLines.empty());
+//        }
+//        return new HeadingParser(level, source);
+//    }
+    
     // spec: An ATX heading consists of a string of characters, parsed as inline content, between an opening sequence of
     // 1–6 unescaped # characters and an optional closing sequence of any number of unescaped # characters. The opening
     // sequence of # characters must be followed by a space or by the end of line. The optional closing sequence of #s
     // must be preceded by a space and may be followed by spaces only.
     private static HeadingParser getAtxHeading(SourceLine line) {
         Scanner scanner = Scanner.of(SourceLines.of(line));
+        //The opening # character may be indented 0-3 spaces.
+        String whitespacePreStart = scanner.whitespaceAsString();
+        
+//        int blockChars = 0;
+//        blockChars += scanner.matchMultiple('>');
+//        blockChars += scanner.matchMultiple('-');
+//        
+//        if(blockChars > 0) {
+//            whitespacePreStart = scanner.whitespaceAsString();
+//        }
+        
         int level = scanner.matchMultiple('#');
 
         if (level == 0 || level > 6) {
@@ -81,7 +192,8 @@ public class HeadingParser extends AbstractBlockParser {
 
         if (!scanner.hasNext()) {
             // End of line after markers is an empty heading
-            return new HeadingParser(level, SourceLines.empty());
+//            return new HeadingParser(level, SourceLines.empty());
+            return new HeadingParser(level, SourceLines.empty(), "", "", 0, '#');
         }
 
         char next = scanner.peek();
@@ -89,23 +201,60 @@ public class HeadingParser extends AbstractBlockParser {
             return null;
         }
 
-        scanner.whitespace();
+//        String whitespacePreContent = scanner.whitespaceAsString();
         Position start = scanner.position();
         Position end = start;
+        
+        String whitespacePreContent = scanner.whitespaceAsString();
+        
+        if(scanner.peek() == Scanner.END) {
+            end = scanner.position();
+        }
+        
+        //If the header is empty, make sure the closing '\n'
+        //   isn't incorrectly counted as a pre-content space
+//        Pattern blankHeader = Pattern.compile("^ *#{1,6} *$");
+//        if(blankHeader.matcher(line.getContent()).matches()) {
+//            end = scanner.position();
+//        }
+//        if(Pattern.compile("^ *#{1,6} *$").matcher(
+//                line.getContent()).matches()) {
+//            end = scanner.position();
+//        }
+        
         boolean hashCanEnd = true;
-
+        String whitespacePostContent = "";
+        
+        String whitespacePostEnd = "";
+        int numEndingSymbol = 0;
+        
         while (scanner.hasNext()) {
             char c = scanner.peek();
             switch (c) {
                 case '#':
                     if (hashCanEnd) {
-                        scanner.matchMultiple('#');
-                        int whitespace = scanner.whitespace();
-                        // If there's other characters, the hashes and spaces were part of the heading
-                        if (scanner.hasNext()) {
+                        if(whitespacePostContent.length() < 1) {
                             end = scanner.position();
                         }
-                        hashCanEnd = whitespace > 0;
+                        numEndingSymbol = scanner.matchMultiple('#');
+                        whitespacePostEnd = scanner.whitespaceAsString();
+                        
+                        // If there's other characters, the hashes and spaces were part of the heading
+                        if (scanner.hasNext()) {
+                         // spec: A sequence of # characters with anything but spaces following it is
+                         //    not a closing sequence, but counts as part of the contents of the heading
+//                            end = scanner.position();
+                            scanner.find(Scanner.END);
+                            end = scanner.position();
+                            
+                            // Since this isn't a closing sequence, any whitespace will be considered
+                            //    part of the "content" and will be passed literally for inline parsing
+                            numEndingSymbol = 0;
+                            whitespacePostContent = "";
+                            whitespacePostEnd = "";
+                        }
+                        
+                        hashCanEnd = whitespacePostEnd.length() > 0;
                     } else {
                         scanner.next();
                         end = scanner.position();
@@ -113,8 +262,10 @@ public class HeadingParser extends AbstractBlockParser {
                     break;
                 case ' ':
                 case '\t':
+                case '\n':
                     hashCanEnd = true;
-                    scanner.next();
+                    whitespacePostContent = scanner.whitespaceAsString();
+                    end = scanner.position();
                     break;
                 default:
                     hashCanEnd = false;
@@ -125,10 +276,29 @@ public class HeadingParser extends AbstractBlockParser {
 
         SourceLines source = scanner.getSource(start, end);
         String content = source.getContent();
-        if (content.isEmpty()) {
-            return new HeadingParser(level, SourceLines.empty());
-        }
-        return new HeadingParser(level, source);
+        
+//        if(numEndingSymbol < 1) {
+//            if(line.getContent().toString().endsWith("\n") &&
+//                    !line.getContent().subSequence(0, line.getContent().length() - 1).toString().endsWith(" ") &&
+//                    !line.getContent().subSequence(0, line.getContent().length() - 1).toString().endsWith("\t")) {
+//                whitespacePostContent = "";
+//            }
+//            
+//            if(!line.getContent().toString().endsWith(" ") &&
+//             !line.getContent().toString().endsWith("\t")) {
+//                whitespacePostContent = "";
+//            }
+//        }
+        
+//        if(numEndingSymbol < 1 &&
+//            !line.getContent().toString().endsWith(" ") &&
+//             !line.getContent().toString().endsWith("\t") &&
+//             !line.getContent().toString().endsWith("\n")) {
+//            whitespacePostContent = "";
+//        }
+        
+        return new HeadingParser(level, source, whitespacePreStart,
+                whitespacePostEnd, numEndingSymbol, '#');
     }
 
     // spec: A setext heading underline is a sequence of = characters or a sequence of - characters, with no more than
@@ -151,5 +321,24 @@ public class HeadingParser extends AbstractBlockParser {
         int afterMarker = Parsing.skip(marker, line, index, line.length());
         int afterSpace = Parsing.skipSpaceTab(line, afterMarker, line.length());
         return afterSpace >= line.length();
+    }
+    
+    private static HeadingParser getSetextHeading(int headingLevel, SourceLines content, CharSequence line, int index) {
+        String whitespacePreStart = line.subSequence(0, index).toString();
+        
+        char lineSymbol = line.charAt(index);
+        
+        int headingLength = Parsing.skip(lineSymbol, line, index, line.length()) - whitespacePreStart.length();
+        
+        int numEndWhitespace = Parsing.skipSpaceTabBackwards(line, line.length() - 1, 0);
+        
+        numEndWhitespace = line.length() - 1 - numEndWhitespace;
+        
+        StringBuilder whitespacePostEnd = new StringBuilder(0);
+        for(int i = 0; i < numEndWhitespace; i++) {
+            whitespacePostEnd.append(" ");
+        }
+        
+        return new HeadingParser(headingLevel, content, whitespacePreStart, whitespacePostEnd.toString(), headingLength, lineSymbol);
     }
 }

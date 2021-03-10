@@ -58,6 +58,58 @@ public class ListBlockParser extends AbstractBlockParser {
     /**
      * Parse a list marker and return data on the marker or null.
      */
+//    private static ListData parseList(CharSequence line, final int markerIndex, final int markerColumn,
+//                                      final boolean inParagraph) {
+//        ListMarkerData listMarker = parseListMarker(line, markerIndex);
+//        if (listMarker == null) {
+//            return null;
+//        }
+//        ListBlock listBlock = listMarker.listBlock;
+//
+//        int indexAfterMarker = listMarker.indexAfterMarker;
+//        int markerLength = indexAfterMarker - markerIndex;
+//        // marker doesn't include tabs, so counting them as columns directly is ok
+//        int columnAfterMarker = markerColumn + markerLength;
+//        // the column within the line where the content starts
+//        int contentColumn = columnAfterMarker;
+//
+//        // See at which column the content starts if there is content
+//        boolean hasContent = false;
+//        int length = line.length();
+//        for (int i = indexAfterMarker; i < length; i++) {
+//            char c = line.charAt(i);
+//            if (c == '\t') {
+//                contentColumn += Parsing.columnsToNextTabStop(contentColumn);
+//            } else if (c == ' ') {
+//                contentColumn++;
+//            } else {
+//                hasContent = true;
+//                break;
+//            }
+//        }
+//
+//        if (inParagraph) {
+//            // If the list item is ordered, the start number must be 1 to interrupt a paragraph.
+//            if (listBlock instanceof OrderedList && ((OrderedList) listBlock).getStartNumber() != 1) {
+//                return null;
+//            }
+//            // Empty list item can not interrupt a paragraph.
+//            if (!hasContent) {
+//                return null;
+//            }
+//        }
+//
+//        if (!hasContent || (contentColumn - columnAfterMarker) > Parsing.CODE_BLOCK_INDENT) {
+//            // If this line is blank or has a code block, default to 1 space after marker
+//            contentColumn = columnAfterMarker + 1;
+//        }
+//
+//        return new ListData(listBlock, contentColumn);
+//    }
+    
+    /**
+     * Parse a list marker and return data on the marker or null.
+     */
     private static ListData parseList(CharSequence line, final int markerIndex, final int markerColumn,
                                       final boolean inParagraph) {
         ListMarkerData listMarker = parseListMarker(line, markerIndex);
@@ -82,6 +134,8 @@ public class ListBlockParser extends AbstractBlockParser {
                 contentColumn += Parsing.columnsToNextTabStop(contentColumn);
             } else if (c == ' ') {
                 contentColumn++;
+//            } else if (c == '\n') {
+//                contentColumn++;
             } else {
                 hasContent = true;
                 break;
@@ -100,6 +154,7 @@ public class ListBlockParser extends AbstractBlockParser {
         }
 
         if (!hasContent || (contentColumn - columnAfterMarker) > Parsing.CODE_BLOCK_INDENT) {
+//        if ((contentColumn - columnAfterMarker) > Parsing.CODE_BLOCK_INDENT) {
             // If this line is blank or has a code block, default to 1 space after marker
             contentColumn = columnAfterMarker + 1;
         }
@@ -126,6 +181,47 @@ public class ListBlockParser extends AbstractBlockParser {
         }
     }
 
+    // spec: An ordered list marker is a sequence of 1–9 arabic digits (0-9), followed by either a `.` character or a
+    // `)` character.
+//    private static ListMarkerData parseOrderedList(CharSequence line, int index) {
+//        int digits = 0;
+//        int length = line.length();
+//        for (int i = index; i < length; i++) {
+//            char c = line.charAt(i);
+//            switch (c) {
+//                case '0':
+//                case '1':
+//                case '2':
+//                case '3':
+//                case '4':
+//                case '5':
+//                case '6':
+//                case '7':
+//                case '8':
+//                case '9':
+//                    digits++;
+//                    if (digits > 9) {
+//                        return null;
+//                    }
+//                    break;
+//                case '.':
+//                case ')':
+//                    if (digits >= 1 && isSpaceTabOrEnd(line, i + 1)) {
+//                        String number = line.subSequence(index, i).toString();
+//                        OrderedList orderedList = new OrderedList();
+//                        orderedList.setStartNumber(Integer.parseInt(number));
+//                        orderedList.setDelimiter(c);
+//                        return new ListMarkerData(orderedList, i + 1);
+//                    } else {
+//                        return null;
+//                    }
+//                default:
+//                    return null;
+//            }
+//        }
+//        return null;
+//    }
+    
     // spec: An ordered list marker is a sequence of 1–9 arabic digits (0-9), followed by either a `.` character or a
     // `)` character.
     private static ListMarkerData parseOrderedList(CharSequence line, int index) {
@@ -155,6 +251,7 @@ public class ListBlockParser extends AbstractBlockParser {
                         String number = line.subSequence(index, i).toString();
                         OrderedList orderedList = new OrderedList();
                         orderedList.setStartNumber(Integer.parseInt(number));
+                        orderedList.setRawNumber(number);
                         orderedList.setDelimiter(c);
                         return new ListMarkerData(orderedList, i + 1);
                     } else {
@@ -201,6 +298,38 @@ public class ListBlockParser extends AbstractBlockParser {
 
     public static class Factory extends AbstractBlockParserFactory {
 
+//        @Override
+//        public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
+//            BlockParser matched = matchedBlockParser.getMatchedBlockParser();
+//
+//            if (state.getIndent() >= Parsing.CODE_BLOCK_INDENT) {
+//                return BlockStart.none();
+//            }
+//            int markerIndex = state.getNextNonSpaceIndex();
+//            int markerColumn = state.getColumn() + state.getIndent();
+//            boolean inParagraph = !matchedBlockParser.getParagraphLines().isEmpty();
+//            ListData listData = parseList(state.getLine().getContent(), markerIndex, markerColumn, inParagraph);
+//            if (listData == null) {
+//                return BlockStart.none();
+//            }
+//
+//            int newColumn = listData.contentColumn;
+//            ListItemParser listItemParser = new ListItemParser(newColumn - state.getColumn());
+//
+//            // prepend the list block if needed
+//            if (!(matched instanceof ListBlockParser) ||
+//                    !(listsMatch((ListBlock) matched.getBlock(), listData.listBlock))) {
+//
+//                ListBlockParser listBlockParser = new ListBlockParser(listData.listBlock);
+//                // We start out with assuming a list is tight. If we find a blank line, we set it to loose later.
+//                listData.listBlock.setTight(true);
+//
+//                return BlockStart.of(listBlockParser, listItemParser).atColumn(newColumn);
+//            } else {
+//                return BlockStart.of(listItemParser).atColumn(newColumn);
+//            }
+//        }
+        
         @Override
         public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
             BlockParser matched = matchedBlockParser.getMatchedBlockParser();
@@ -218,19 +347,24 @@ public class ListBlockParser extends AbstractBlockParser {
 
             int newColumn = listData.contentColumn;
             ListItemParser listItemParser = new ListItemParser(newColumn - state.getColumn());
+//            ListItemParser listItemParser = new ListItemParser(newColumn);
+            int preDelimiterWhitespaceIndex = Parsing.skipSpaceTabBackwards(state.getLine().getContent(), state.getNextNonSpaceIndex() - 1, 0) + 1;
+            listItemParser.setPreDelimiterWhitespace(state.getLine().substring(preDelimiterWhitespaceIndex, state.getNextNonSpaceIndex()).getContent().toString());
 
             // prepend the list block if needed
-            if (!(matched instanceof ListBlockParser) ||
-                    !(listsMatch((ListBlock) matched.getBlock(), listData.listBlock))) {
+//            if (!(matched instanceof ListBlockParser) ||
+//                    !(listsMatch((ListBlock) matched.getBlock(), listData.listBlock))) {
 
                 ListBlockParser listBlockParser = new ListBlockParser(listData.listBlock);
                 // We start out with assuming a list is tight. If we find a blank line, we set it to loose later.
                 listData.listBlock.setTight(true);
 
                 return BlockStart.of(listBlockParser, listItemParser).atColumn(newColumn);
-            } else {
-                return BlockStart.of(listItemParser).atColumn(newColumn);
-            }
+//                return BlockStart.of(listBlockParser, listItemParser).atColumn(0);
+//            } else {
+//                return BlockStart.of(listItemParser).atColumn(newColumn);
+////                return BlockStart.of(listItemParser).atColumn(0);
+//            }
         }
     }
 

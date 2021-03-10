@@ -69,4 +69,16 @@ public class ListItemParser extends AbstractBlockParser {
             return BlockContinue.none();
         }
     }
+    
+    public int getContentIndent() {
+        return contentIndent;
+    }
+    
+    public CharSequence getPreDelimiterWhitespace() {
+        return block.getPreDelimiterWhitespace();
+    }
+    
+    public void setPreDelimiterWhitespace(String whitespace) {
+        block.setPreDelimiterWhitespace(whitespace);
+    }
 }

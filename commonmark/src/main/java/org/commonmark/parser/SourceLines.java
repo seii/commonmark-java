@@ -42,12 +42,23 @@ public class SourceLines {
         return lines.isEmpty();
     }
 
+//    public String getContent() {
+//        StringBuilder sb = new StringBuilder();
+//        for (int i = 0; i < lines.size(); i++) {
+//            if (i != 0) {
+//                sb.append('\n');
+//            }
+//            sb.append(lines.get(i).getContent());
+//        }
+//        return sb.toString();
+//    }
+    
     public String getContent() {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < lines.size(); i++) {
-            if (i != 0) {
-                sb.append('\n');
-            }
+//            if (i != 0) {
+//                sb.append('\n');
+//            }
             sb.append(lines.get(i).getContent());
         }
         return sb.toString();

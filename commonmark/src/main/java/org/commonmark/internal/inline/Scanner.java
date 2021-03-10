@@ -192,6 +192,30 @@ public class Scanner {
             }
         }
     }
+    
+    /**
+     * Useful for checking what precisely is in the next series of whitespace
+     * @return Consecutive whitespace as String, or empty String if no whitespace found
+     */
+    public String whitespaceAsString() {
+        StringBuilder sb = new StringBuilder(0);
+        while (true) {
+            char c = peek();
+            switch (c) {
+                case ' ':
+                case '\t':
+                case '\n':
+                case '\u000B':
+                case '\f':
+                case '\r':
+                    sb.append(c);
+                    next();
+                    break;
+                default:
+                    return sb.toString();
+            }
+        }
+    }
 
     public int find(char c) {
         int count = 0;
@@ -261,6 +285,15 @@ public class Scanner {
             SourceLine lastLine = lines.get(end.lineIndex);
             sourceLines.addLine(lastLine.substring(0, end.index));
             return sourceLines;
+        }
+    }
+    
+    public boolean isBlankLine() {
+        if(line != null && !line.getContent().toString().isEmpty() &&
+                line.getContent().toString().trim().equals("")) {
+            return true;
+        }else {
+            return false;
         }
     }
 

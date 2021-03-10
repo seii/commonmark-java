@@ -8,6 +8,14 @@ public class ThematicBreakParser extends AbstractBlockParser {
 
     private final ThematicBreak block = new ThematicBreak();
 
+    public ThematicBreakParser() {
+        block.setContent(null);
+    }
+    
+    public ThematicBreakParser(CharSequence content) {
+        block.setContent(content);
+    }
+    
     @Override
     public Block getBlock() {
         return block;
@@ -21,15 +29,39 @@ public class ThematicBreakParser extends AbstractBlockParser {
 
     public static class Factory extends AbstractBlockParserFactory {
 
+//        @Override
+//        public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
+//            if (state.getIndent() >= 4) {
+//                return BlockStart.none();
+//            }
+//            int nextNonSpace = state.getNextNonSpaceIndex();
+//            CharSequence line = state.getLine().getContent();
+//            if (isThematicBreak(line, nextNonSpace)) {
+//                return BlockStart.of(new ThematicBreakParser()).atIndex(line.length());
+//            } else {
+//                return BlockStart.none();
+//            }
+//        }
+        
         @Override
         public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
             if (state.getIndent() >= 4) {
                 return BlockStart.none();
             }
             int nextNonSpace = state.getNextNonSpaceIndex();
-            CharSequence line = state.getLine().getContent();
+            
+            CharSequence line;
+            if(!(state instanceof DocumentRoundtripParser) || ((DocumentRoundtripParser)state).getContainerString() == null) {
+                line = state.getLine().getContent();
+            }else {
+                line = ((DocumentRoundtripParser)state).getContainerString();
+            }
+            
+//            if(line.toString().endsWith("\n")) {
+//                line = line.subSequence(0, line.length() - 1);
+//            }
             if (isThematicBreak(line, nextNonSpace)) {
-                return BlockStart.of(new ThematicBreakParser()).atIndex(line.length());
+                return BlockStart.of(new ThematicBreakParser(line)).atIndex(line.length());
             } else {
                 return BlockStart.none();
             }

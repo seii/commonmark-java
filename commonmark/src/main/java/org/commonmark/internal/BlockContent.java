@@ -15,9 +15,9 @@ class BlockContent {
     }
 
     public void add(CharSequence line) {
-        if (lineCount != 0) {
-            sb.append('\n');
-        }
+//        if (lineCount != 0) {
+//            sb.append('\n');
+//        }
         sb.append(line);
         lineCount++;
     }

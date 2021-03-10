@@ -24,6 +24,7 @@ public class Link extends Node {
 
     private String destination;
     private String title;
+    private boolean isAutolink;
 
     public Link() {
     }
@@ -52,6 +53,14 @@ public class Link extends Node {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+    
+    public boolean isAutolink() {
+        return isAutolink;
+    }
+
+    public void setAutolink(boolean isAutolink) {
+        this.isAutolink = isAutolink;
     }
 
     @Override

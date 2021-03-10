@@ -149,8 +149,85 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
      * On success, return the new inline node.
      * On failure, return null.
      */
+//    private List<? extends Node> parseInline() {
+//        char c = scanner.peek();
+//
+//        switch (c) {
+//            case '[':
+//                return Collections.singletonList(parseOpenBracket());
+//            case '!':
+//                return Collections.singletonList(parseBang());
+//            case ']':
+//                return Collections.singletonList(parseCloseBracket());
+//            case '\n':
+//                return Collections.singletonList(parseLineBreak());
+//            case Scanner.END:
+//                return null;
+//        }
+//
+//        // No inline parser, delimiter or other special handling.
+//        if (!specialCharacters.get(c)) {
+//            return Collections.singletonList(parseText());
+//        }
+//
+//        List<InlineContentParser> inlineParsers = this.inlineParsers.get(c);
+//        if (inlineParsers != null) {
+//            Position position = scanner.position();
+//            for (InlineContentParser inlineParser : inlineParsers) {
+//                ParsedInline parsedInline = inlineParser.tryParse(this);
+//                if (parsedInline instanceof ParsedInlineImpl) {
+//                    ParsedInlineImpl parsedInlineImpl = (ParsedInlineImpl) parsedInline;
+//                    Node node = parsedInlineImpl.getNode();
+//                    scanner.setPosition(parsedInlineImpl.getPosition());
+//                    if (includeSourceSpans && node.getSourceSpans().isEmpty()) {
+//                        node.setSourceSpans(scanner.getSource(position, scanner.position()).getSourceSpans());
+//                    }
+//                    return Collections.singletonList(node);
+//                } else {
+//                    // Reset position
+//                    scanner.setPosition(position);
+//                }
+//            }
+//        }
+//
+//        DelimiterProcessor delimiterProcessor = delimiterProcessors.get(c);
+//        if (delimiterProcessor != null) {
+//            List<? extends Node> nodes = parseDelimiters(delimiterProcessor, c);
+//            if (nodes != null) {
+//                return nodes;
+//            }
+//        }
+//
+//        // If we get here, even for a special/delimiter character, we will just treat it as text.
+//        return Collections.singletonList(parseText());
+//    }
+    
+    /**
+     * Parse the next inline element in subject, advancing our position.
+     * On success, return the new inline node.
+     * On failure, return null.
+     */
     private List<? extends Node> parseInline() {
         char c = scanner.peek();
+        
+//        if(c == Scanner.END && scanner.peekPrevious() == Scanner.END) {
+//        if(scanner.isBlankLine()) {
+////            c = '\n';
+////            scanner.next();
+////            return Collections.singletonList(parseLineBreak());
+////            return Collections.singletonList(parseText());
+//            Node test1 = parseText();
+//            Node test2 = parseLineBreak();
+//            ArrayList<Node> testList = new ArrayList<Node>();
+//            
+////            if(scanner.peek() != Scanner.END) {
+//                testList.add(test1);
+//                testList.add(test2);
+////            }else {
+////                testList.add(test1);
+////            }
+//            return Collections.unmodifiableList(testList);
+//        }
 
         switch (c) {
             case '[':
@@ -159,8 +236,8 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
                 return Collections.singletonList(parseBang());
             case ']':
                 return Collections.singletonList(parseCloseBracket());
-            case '\n':
-                return Collections.singletonList(parseLineBreak());
+//            case '\n':
+//                return Collections.singletonList(parseLineBreak());
             case Scanner.END:
                 return null;
         }
@@ -174,7 +251,17 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
         if (inlineParsers != null) {
             Position position = scanner.position();
             for (InlineContentParser inlineParser : inlineParsers) {
-                ParsedInline parsedInline = inlineParser.tryParse(this);
+                ParsedInline parsedInline;
+                
+                // When parsing to HTML it is correct to parse entities,
+                //    but the CommonMark spec shows raw CommonMark as
+                //    rendering only the literals, not the parsed entities
+                if(inlineParser instanceof EntityInlineParser) {
+                    parsedInline = ParsedInline.none();
+                }else {
+                    parsedInline = inlineParser.tryParse(this);
+                }
+                
                 if (parsedInline instanceof ParsedInlineImpl) {
                     ParsedInlineImpl parsedInlineImpl = (ParsedInlineImpl) parsedInline;
                     Node node = parsedInlineImpl.getNode();
@@ -261,6 +348,127 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
      * Try to match close bracket against an opening in the delimiter stack. Return either a link or image, or a
      * plain [ character. If there is a matching delimiter, remove it from the delimiter stack.
      */
+//    private Node parseCloseBracket() {
+//        Position beforeClose = scanner.position();
+//        scanner.next();
+//        Position afterClose = scanner.position();
+//
+//        // Get previous `[` or `![`
+//        Bracket opener = lastBracket;
+//        if (opener == null) {
+//            // No matching opener, just return a literal.
+//            return text(scanner.getSource(beforeClose, afterClose));
+//        }
+//
+//        if (!opener.allowed) {
+//            // Matching opener but it's not allowed, just return a literal.
+//            removeLastBracket();
+//            return text(scanner.getSource(beforeClose, afterClose));
+//        }
+//
+//        // Check to see if we have a link/image
+//        String dest = null;
+//        String title = null;
+//
+//        // Maybe a inline link like `[foo](/uri "title")`
+//        if (scanner.next('(')) {
+//            scanner.whitespace();
+//            dest = parseLinkDestination(scanner);
+//            if (dest == null) {
+//                scanner.setPosition(afterClose);
+//            } else {
+//                int whitespace = scanner.whitespace();
+//                // title needs a whitespace before
+//                if (whitespace >= 1) {
+//                    title = parseLinkTitle(scanner);
+//                    scanner.whitespace();
+//                }
+//                if (!scanner.next(')')) {
+//                    // Don't have a closing `)`, so it's not a destination and title -> reset.
+//                    // Note that something like `[foo](` could be valid, `(` will just be text.
+//                    scanner.setPosition(afterClose);
+//                    dest = null;
+//                    title = null;
+//                }
+//            }
+//        }
+//
+//        // Maybe a reference link like `[foo][bar]`, `[foo][]` or `[foo]`.
+//        // Note that even `[foo](` could be a valid link if there's a reference, which is why this is not just an `else`
+//        // here.
+//        if (dest == null) {
+//            // See if there's a link label like `[bar]` or `[]`
+//            String ref = parseLinkLabel(scanner);
+//            if (ref == null) {
+//                scanner.setPosition(afterClose);
+//            }
+//            if ((ref == null || ref.isEmpty()) && !opener.bracketAfter) {
+//                // If the second label is empty `[foo][]` or missing `[foo]`, then the first label is the reference.
+//                // But it can only be a reference when there's no (unescaped) bracket in it.
+//                // If there is, we don't even need to try to look up the reference. This is an optimization.
+//                ref = scanner.getSource(opener.contentPosition, beforeClose).getContent();
+//            }
+//
+//            if (ref != null) {
+//                String label = Escaping.normalizeLabelContent(ref);
+//                LinkReferenceDefinition definition = context.getLinkReferenceDefinition(label);
+//                if (definition != null) {
+//                    dest = definition.getDestination();
+//                    title = definition.getTitle();
+//                }
+//            }
+//        }
+//
+//        if (dest != null) {
+//            // If we got here, we have a link or image
+//            Node linkOrImage = opener.image ? new Image(dest, title) : new Link(dest, title);
+//
+//            // Add all nodes between the opening bracket and now (closing bracket) as child nodes of the link
+//            Node node = opener.node.getNext();
+//            while (node != null) {
+//                Node next = node.getNext();
+//                linkOrImage.appendChild(node);
+//                node = next;
+//            }
+//
+//            if (includeSourceSpans) {
+//                linkOrImage.setSourceSpans(scanner.getSource(opener.markerPosition, scanner.position()).getSourceSpans());
+//            }
+//
+//            // Process delimiters such as emphasis inside link/image
+//            processDelimiters(opener.previousDelimiter);
+//            mergeChildTextNodes(linkOrImage);
+//            // We don't need the corresponding text node anymore, we turned it into a link/image node
+//            opener.node.unlink();
+//            removeLastBracket();
+//
+//            // Links within links are not allowed. We found this link, so there can be no other link around it.
+//            if (!opener.image) {
+//                Bracket bracket = lastBracket;
+//                while (bracket != null) {
+//                    if (!bracket.image) {
+//                        // Disallow link opener. It will still get matched, but will not result in a link.
+//                        bracket.allowed = false;
+//                    }
+//                    bracket = bracket.previous;
+//                }
+//            }
+//
+//            return linkOrImage;
+//
+//        } else {
+//            // No link or image, parse just the bracket as text and continue
+//            removeLastBracket();
+//
+//            scanner.setPosition(afterClose);
+//            return text(scanner.getSource(beforeClose, afterClose));
+//        }
+//    }
+    
+    /**
+     * Try to match close bracket against an opening in the delimiter stack. Return either a link or image, or a
+     * plain [ character. If there is a matching delimiter, remove it from the delimiter stack.
+     */
     private Node parseCloseBracket() {
         Position beforeClose = scanner.position();
         scanner.next();
@@ -290,9 +498,11 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
             if (dest == null) {
                 scanner.setPosition(afterClose);
             } else {
+                Position beforeWhitespace = scanner.position();
                 int whitespace = scanner.whitespace();
                 // title needs a whitespace before
                 if (whitespace >= 1) {
+                    scanner.setPosition(beforeWhitespace);
                     title = parseLinkTitle(scanner);
                     scanner.whitespace();
                 }
@@ -392,6 +602,28 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
     /**
      * Attempt to parse link destination, returning the string or null if no match.
      */
+//    private String parseLinkDestination(Scanner scanner) {
+//        char delimiter = scanner.peek();
+//        Position start = scanner.position();
+//        if (!LinkScanner.scanLinkDestination(scanner)) {
+//            return null;
+//        }
+//
+//        String dest;
+//        if (delimiter == '<') {
+//            // chop off surrounding <..>:
+//            String rawDestination = scanner.getSource(start, scanner.position()).getContent();
+//            dest = rawDestination.substring(1, rawDestination.length() - 1);
+//        } else {
+//            dest = scanner.getSource(start, scanner.position()).getContent();
+//        }
+//
+//        return Escaping.unescapeString(dest);
+//    }
+    
+    /**
+     * Attempt to parse link destination, returning the string or null if no match.
+     */
     private String parseLinkDestination(Scanner scanner) {
         char delimiter = scanner.peek();
         Position start = scanner.position();
@@ -399,18 +631,35 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
             return null;
         }
 
-        String dest;
-        if (delimiter == '<') {
-            // chop off surrounding <..>:
-            String rawDestination = scanner.getSource(start, scanner.position()).getContent();
-            dest = rawDestination.substring(1, rawDestination.length() - 1);
-        } else {
-            dest = scanner.getSource(start, scanner.position()).getContent();
-        }
-
-        return Escaping.unescapeString(dest);
+//        String dest;
+//        if (delimiter == '<') {
+//            // chop off surrounding <..>:
+//            String rawDestination = scanner.getSource(start, scanner.position()).getContent();
+//            dest = rawDestination.substring(1, rawDestination.length() - 1);
+//        } else {
+//            dest = scanner.getSource(start, scanner.position()).getContent();
+//        }
+        String dest = scanner.getSource(start, scanner.position()).getContent();
+        
+//        return Escaping.unescapeString(dest);
+        return dest;
     }
 
+    /**
+     * Attempt to parse link title (sans quotes), returning the string or null if no match.
+     */
+//    private String parseLinkTitle(Scanner scanner) {
+//        Position start = scanner.position();
+//        if (!LinkScanner.scanLinkTitle(scanner)) {
+//            return null;
+//        }
+//
+//        // chop off ', " or parens
+//        String rawTitle = scanner.getSource(start, scanner.position()).getContent();
+//        String title = rawTitle.substring(1, rawTitle.length() - 1);
+//        return Escaping.unescapeString(title);
+//    }
+    
     /**
      * Attempt to parse link title (sans quotes), returning the string or null if no match.
      */
@@ -422,8 +671,9 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
 
         // chop off ', " or parens
         String rawTitle = scanner.getSource(start, scanner.position()).getContent();
-        String title = rawTitle.substring(1, rawTitle.length() - 1);
-        return Escaping.unescapeString(title);
+//        String title = rawTitle.substring(1, rawTitle.length() - 1);
+//        return Escaping.unescapeString(title);
+        return rawTitle;
     }
 
     /**
@@ -466,6 +716,40 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
     /**
      * Parse the next character as plain text, and possibly more if the following characters are non-special.
      */
+//    private Node parseText() {
+//        Position start = scanner.position();
+//        scanner.next();
+//        char c;
+//        while (true) {
+//            c = scanner.peek();
+//            if (c == Scanner.END || specialCharacters.get(c)) {
+//                break;
+//            }
+//            scanner.next();
+//        }
+//
+//        SourceLines source = scanner.getSource(start, scanner.position());
+//        String content = source.getContent();
+//
+//        if (c == '\n') {
+//            // We parsed until the end of the line. Trim any trailing spaces and remember them (for hard line breaks).
+//            int end = Parsing.skipBackwards(' ', content, content.length() - 1, 0) + 1;
+//            trailingSpaces = content.length() - end;
+//            content = content.substring(0, end);
+//        } else if (c == Scanner.END) {
+//            // For the last line, both tabs and spaces are trimmed for some reason (checked with commonmark.js).
+//            int end = Parsing.skipSpaceTabBackwards(content, content.length() - 1, 0) + 1;
+//            content = content.substring(0, end);
+//        }
+//
+//        Text text = new Text(content);
+//        text.setSourceSpans(source.getSourceSpans());
+//        return text;
+//    }
+    
+    /**
+     * Parse the next character as plain text, and possibly more if the following characters are non-special.
+     */
     private Node parseText() {
         Position start = scanner.position();
         scanner.next();
@@ -481,15 +765,23 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
         SourceLines source = scanner.getSource(start, scanner.position());
         String content = source.getContent();
 
+        //TODO: Figure out why trailing spaces/tabs were being trimmed at all
+//        if (c == '\n') {
+//            // We parsed until the end of the line. Trim any trailing spaces and remember them (for hard line breaks).
+//            int end = Parsing.skipBackwards(' ', content, content.length() - 1, 0) + 1;
+//            trailingSpaces = content.length() - end;
+//            content = content.substring(0, end);
+//        } else if (c == Scanner.END) {
+//            // For the last line, both tabs and spaces are trimmed for some reason (checked with commonmark.js).
+//            int end = Parsing.skipSpaceTabBackwards(content, content.length() - 1, 0) + 1;
+//            content = content.substring(0, end);
+//        }
+        
         if (c == '\n') {
-            // We parsed until the end of the line. Trim any trailing spaces and remember them (for hard line breaks).
-            int end = Parsing.skipBackwards(' ', content, content.length() - 1, 0) + 1;
-            trailingSpaces = content.length() - end;
-            content = content.substring(0, end);
-        } else if (c == Scanner.END) {
-            // For the last line, both tabs and spaces are trimmed for some reason (checked with commonmark.js).
-            int end = Parsing.skipSpaceTabBackwards(content, content.length() - 1, 0) + 1;
-            content = content.substring(0, end);
+          // We parsed until the end of the line. Trim any trailing spaces and remember them (for hard line breaks).
+          int end = Parsing.skipBackwards(' ', content, content.length() - 1, 0) + 1;
+          trailingSpaces = content.length() - end;
+//          content = content.substring(0, end);
         }
 
         Text text = new Text(content);

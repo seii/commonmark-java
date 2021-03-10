@@ -3,6 +3,7 @@ package org.commonmark.node;
 public class OrderedList extends ListBlock {
 
     private int startNumber;
+    private String rawNumber;
     private char delimiter;
 
     @Override
@@ -16,6 +17,14 @@ public class OrderedList extends ListBlock {
 
     public void setStartNumber(int startNumber) {
         this.startNumber = startNumber;
+    }
+    
+    public String getRawNumber() {
+        return rawNumber;
+    }
+
+    public void setRawNumber(String rawNumber) {
+        this.rawNumber = rawNumber;
     }
 
     public char getDelimiter() {
