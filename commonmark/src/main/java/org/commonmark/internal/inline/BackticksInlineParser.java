@@ -59,19 +59,23 @@ public class BackticksInlineParser implements InlineContentParser {
             if (count == openingTicks) {
                 Code node = new Code();
 
-                String content = scanner.getSource(afterOpening, beforeClosing).getContent();
-//                content = content.replace('\n', ' ');
-
-                //The spec does say the below, but only in the context of _rendering to HTML_, not when parsing to an AST
-//                // spec: If the resulting string both begins and ends with a space character, but does not consist
-//                // entirely of space characters, a single space character is removed from the front and back.
-//                if (content.length() >= 3 &&
-//                        content.charAt(0) == ' ' &&
-//                        content.charAt(content.length() - 1) == ' ' &&
-//                        Parsing.hasNonSpace(content)) {
-//                    content = content.substring(1, content.length() - 1);
-//                }
-
+                String content = "";
+                if(!Parsing.IS_ROUNDTRIP) {
+                    content = scanner.getSource(afterOpening, beforeClosing).getContent();
+                    content = content.replace('\n', ' ');
+                    // spec: If the resulting string both begins and ends with a space character, but does not consist
+                    // entirely of space characters, a single space character is removed from the front and back.
+                    if (content.length() >= 3 &&
+                            content.charAt(0) == ' ' &&
+                            content.charAt(content.length() - 1) == ' ' &&
+                            Parsing.hasNonSpace(content)) {
+                        content = content.substring(1, content.length() - 1);
+                    }
+                }else {
+                 // spec only removes characters when parsing to HTML, not to AST
+                    content = scanner.getSource(afterOpening, beforeClosing).getContent();
+                }
+                
                 node.setLiteral(content);
                 node.setNumBackticks(openingTicks);
                 return ParsedInline.of(node, scanner.position());

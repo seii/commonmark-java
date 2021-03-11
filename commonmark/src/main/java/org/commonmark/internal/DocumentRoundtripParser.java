@@ -85,6 +85,7 @@ public class DocumentRoundtripParser implements ParserState {
 
         this.documentBlockParser = new DocumentBlockParser();
         activateBlockParser(new OpenBlockParser(documentBlockParser, 0));
+        Parsing.IS_ROUNDTRIP = true;
     }
 
     public static Set<Class<? extends Block>> getDefaultBlockParserTypes() {
@@ -133,31 +134,6 @@ public class DocumentRoundtripParser implements ParserState {
         }
 
         String line = "";
-//        int charInt;
-//        
-//        while((charInt = bufferedReader.read()) != -1) {
-//            char oneChar = (char)charInt;
-//            line += oneChar;
-//            
-//            if(oneChar == '\n') {
-//                parseLine(line);
-//                line = "";
-//            }
-//            
-//            if(oneChar == '\r') {
-//                bufferedReader.mark(1);
-//                oneChar = (char) bufferedReader.read();
-//                
-//                if(oneChar != -1 && oneChar == '\n') {
-//                    line += "\n";
-//                }else {
-//                    bufferedReader.reset();
-//                }
-//                
-//                parseLine(line);
-//                line = "";
-//            }
-//        }
         
         while ((line = bufferedReader.readLine()) != null) {
             parseLine(line + "\n");
@@ -494,6 +470,17 @@ public class DocumentRoundtripParser implements ParserState {
         return null;
     }
 
+    /**
+     * Truncate current text line to remove delimiter and/or number if a container's parser is detected.
+     * @param blockParserFactory
+     * @param result
+     */
+    // This method is likely not the best approach, but if nothing is done the
+    //    variable representing the current raw text will retain the delimiter for Lists and
+    //    BlockQuotes. This means rendering the AST will show duplicate delimiters and/or
+    //    numbers. The data for what delimiter and/or number is already gathered in the
+    //    container classes, so the easiest way to avoid refactoring the code is to simply
+    //    track the text for these container blocks and truncate it as needed.
     private void prepareContainerStartBlock(BlockParserFactory blockParserFactory, BlockStart result) {
         if(blockParserFactory instanceof BlockQuoteParser.Factory) {
             BlockParser[] currentBlockParsers = ((BlockStartImpl) result).getBlockParsers();
@@ -522,13 +509,6 @@ public class DocumentRoundtripParser implements ParserState {
                     
                     containerString = containerString.substring(postDelimiterIndex);
                 }
-                
-//                line = line.substring(postDelimiterIndex, line.getContent().length());
-//                
-//                column = postDelimiterIndex;
-//                index = column;
-//                nextNonSpace = column;
-//                nextNonSpaceColumn = nextNonSpace;
             }
         }
         
@@ -544,15 +524,6 @@ public class DocumentRoundtripParser implements ParserState {
             }
             
             if(listBlockParser != null) {
-//                int numPreContentWhitespace = listBlockParser.getPreDelimiterWhitespace().length();
-//                
-//                int postDelimiterIndex = numPreContentWhitespace;
-//                for(int i = numPreContentWhitespace; i < line.getContent().length(); i++) {
-//                    if(Parsing.isSpaceOrTab(line.getContent(), i)) {
-//                        postDelimiterIndex = i;
-//                        break;
-//                    }
-//                }
                 
                 int preContentIndex;
                 for(preContentIndex = nextNonSpace; preContentIndex < line.getContent().length(); preContentIndex++) {
@@ -565,67 +536,7 @@ public class DocumentRoundtripParser implements ParserState {
                     }
                 }
                 
-//                stoppingPoint = postDelimiterIndex;
                 containerString = line.getContent().subSequence(preContentIndex, line.getContent().length()).toString();
-//                line = line.substring(postDelimiterIndex, line.getContent().length());
-//                indent = Parsing.skipSpaceTab(line.getContent(), 0, line.getContent().length());
-//                lineIndex = indent;
-//                nextNonSpace = indent;
-//                nextNonSpaceColumn = indent;
-                
-                //TODO: Finish Implementing
-            }
-        }
-    }
-    
-    /**
-     * Truncate current text line to remove delimiter and/or number if a ListItemParser is detected.
-     * @param blockParserFactory
-     * @param result
-     */
-    // This method is likely not the best approach, but if nothing is done the <pre>line</pre>
-    //    variable representing the current raw text will retain the delimiter and the number (for
-    //    an <pre>OrderedList</pre> or the delimiter only (for a <pre>BulletList</pre>. This
-    //    means rendering the AST will show duplicate delimiters and/or numbers. The data for
-    //    what delimiter and/or number is used is already gathered in the two list classes,
-    //    so the easiest way to avoid refactoring the code is to simply truncate <pre>line</pre>.
-    private void prepareListBlock(BlockParserFactory blockParserFactory, BlockStart result) {
-        if(blockParserFactory instanceof ListBlockParser.Factory) {
-            BlockParser[] currentBlockParsers = ((BlockStartImpl) result).getBlockParsers();
-            ListItemParser listBlockParser = null;
-            for(int i = 0; i < currentBlockParsers.length; i++) {
-                if(currentBlockParsers[i] instanceof ListItemParser) {
-                    listBlockParser = (ListItemParser) currentBlockParsers[i];
-                    break;
-                }
-            }
-            
-            if(listBlockParser != null) {
-//                int prefixLength = line.getContent().subSequence(0, ((ListItemParser)listBlockParser).getContentIndent() - 1).toString().trim().length();
-//                line = line.substring(index + prefixLength, line.getContent().length());
-//                int preDelimiterWhitespaceIndex = 0;
-//                if(listBlockParser.getPreIndentWhitespace().length() > 0) {
-//                    preDelimiterWhitespaceIndex = listBlockParser.getPreIndentWhitespace().length() - 1;
-//                }
-                
-//                int delimiterEndIndex = line.substring(indent, listBlockParser.getContentIndent()).getContent().length();
-//                int numPreContentWhitespace = Parsing.skipSpaceTabBackwards(line.getContent(), listBlockParser.getContentIndent() - 1, 0);
-                int numPreContentWhitespace = listBlockParser.getPreDelimiterWhitespace().length();
-                
-                int postDelimiterIndex = numPreContentWhitespace;
-                for(int i = numPreContentWhitespace; i < line.getContent().length(); i++) {
-                    if(Parsing.isSpaceOrTab(line.getContent(), i)) {
-                        postDelimiterIndex = i;
-                        break;
-                    }
-                }
-                
-                line = line.substring(postDelimiterIndex, line.getContent().length());
-                indent = Parsing.skipSpaceTab(line.getContent(), 0, line.getContent().length());
-//                indent = Parsing.skipSpaceTab(line.getContent(), 0, line.getContent().length());
-                lineIndex = indent;
-                nextNonSpace = indent;
-                nextNonSpaceColumn = indent;
             }
         }
     }

@@ -71,12 +71,11 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
             int i = block.getStartFenceIndent();
             int length = line.length();
             
-            if(line.toString().matches(".*\\n$")) {
-                int lastNonNewlineChar = Parsing.skipBackwards('\n', line, length - 1, i);
-//                block.setWhitespacePostFence(Parsing.skipSpaceTabBackwards(line, lastNonNewlineChar, i));
-//            }else {
-//                block.setWhitespacePostFence(Parsing.skipSpaceTabBackwards(line, length - 1, i) - 1);
-                block.setWhitespacePostFence(line.subSequence(lastNonNewlineChar + 1, line.length()).toString());
+            if(Parsing.IS_ROUNDTRIP) {
+                if(line.toString().matches(".*\\n$")) {
+                    int lastNonNewlineChar = Parsing.skipBackwards('\n', line, length - 1, i);
+                    block.setWhitespacePostFence(line.subSequence(lastNonNewlineChar + 1, line.length()).toString());
+                }
             }
             
             while (i > 0 && newIndex < length && line.charAt(newIndex) == ' ') {
@@ -97,44 +96,28 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
 //        }
 //    }
     
-    public void addLine(SourceLine line) {
-//      boolean test1 = !line.getContent().toString().matches("^ {0,3}`+.*\\n$");
-//      boolean test2 = !line.getContent().toString().matches("^ {0,3}~+[^ ]* *\\n$");
-//      if(!line.getContent().toString().matches("^ {0,3}`+.*\\n$") &&
-//              !line.getContent().toString().matches("^ {0,3}~+.*\\n$")) {
-//      if(test1 && test2) {
-//          result = line.getContent().toString().trim().replace("`", "").replace("~", "").concat("\n");
-//      }
-      
-//      if(Parsing.skip('`', line.getContent(), 0, line.getContent().length()) !=
-//              line.getContent().toString().length() - 1) {
-//          result = line.getContent().toString();
-//      }
-      
+    public void addLine(SourceLine line) {      
       if (firstLine == null) {
-          int lineEndPos = line.getContent().toString().length();
-          int startPos = Parsing.skipSpaceTab(line.getContent(), 0, lineEndPos);
-          if(line.getContent().charAt(startPos) == '`') {
-              startPos = Parsing.skip('`', line.getContent(), startPos, lineEndPos);
-          }
-          
-          if(line.getContent().charAt(startPos) == '~') {
-              startPos = Parsing.skip('~', line.getContent(), 0, lineEndPos);
-          }
-          
-//          if(!line.getContent().toString().startsWith(">")) {
+          if(!Parsing.IS_ROUNDTRIP) {
+              firstLine = line.getContent().toString();
+          }else {
+              int lineEndPos = line.getContent().toString().length();
+              int startPos = Parsing.skipSpaceTab(line.getContent(), 0, lineEndPos);
+              if(line.getContent().charAt(startPos) == '`') {
+                  startPos = Parsing.skip('`', line.getContent(), startPos, lineEndPos);
+              }
+              
+              if(line.getContent().charAt(startPos) == '~') {
+                  startPos = Parsing.skip('~', line.getContent(), 0, lineEndPos);
+              }
+              
               firstLine = line.getContent().subSequence(startPos, lineEndPos).toString();
-//          }else {
-//              firstLine = "";
-//          }
-          
-//          firstLine = line.getContent().toString().trim().replace("`", "").replace("~", "").concat("\n");
+          }
       } else {
-//          if(line.getContent().toString().endsWith("\n")) {
-//              //TODO: line = line.subSequence(0, line.getContent().length() - 1);
-//          }
           otherLines.append(line.getContent());
-//          otherLines.append('\n');
+          if(!Parsing.IS_ROUNDTRIP) {
+              otherLines.append('\n');
+          }
       }
   }
 
@@ -148,7 +131,11 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
     @Override
     public void closeBlock() {
         // first line becomes info string
-        block.setInfo(firstLine);
+        if(!Parsing.IS_ROUNDTRIP) {
+            block.setInfo(unescapeString(firstLine.trim()));
+        }else {
+            block.setInfo(firstLine);
+        }
         block.setLiteral(otherLines.toString());
     }
 
@@ -172,38 +159,34 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
         
         @Override
         public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
-            if(!(state instanceof DocumentRoundtripParser) || ((DocumentRoundtripParser)state).getContainerString() == null) {
+            FencedCodeBlockParser blockParser = null;
+            int nextNonSpace = 0;
+            
+            if(!Parsing.IS_ROUNDTRIP || ((DocumentRoundtripParser)state).getContainerString() == null) {
                 int indent = state.getIndent();
                 if (indent >= Parsing.CODE_BLOCK_INDENT) {
                     return BlockStart.none();
                 }
-
-                int nextNonSpace = state.getNextNonSpaceIndex();
-                FencedCodeBlockParser blockParser = checkOpener(state.getLine().getContent(), nextNonSpace, indent);
-                
-                if (blockParser != null) {
-                    blockParser.block.setStartFenceIndent(nextNonSpace);
-                    return BlockStart.of(blockParser).atIndex(nextNonSpace + blockParser.block.getStartFenceLength());
-                } else {
-                    return BlockStart.none();
-                }
+            
+                nextNonSpace = state.getNextNonSpaceIndex();
+                blockParser = checkOpener(state.getLine().getContent(), nextNonSpace, indent);
             }else {
                 String containerString = ((DocumentRoundtripParser)state).getContainerString();
-                int nextNonSpace = Parsing.skipSpaceTab(containerString, 0, containerString.length());
-                
+                nextNonSpace = Parsing.skipSpaceTab(containerString, 0, containerString.length());
+                  
                 if(nextNonSpace + 1 >= Parsing.CODE_BLOCK_INDENT) {
                     return BlockStart.none();
                 }
-                
-                FencedCodeBlockParser blockParser = checkOpener(containerString, nextNonSpace, nextNonSpace);
-                if (blockParser != null) {
-                    blockParser.block.setStartFenceIndent(nextNonSpace);
-                    return BlockStart.of(blockParser).atIndex(nextNonSpace + blockParser.block.getStartFenceLength());
-                } else {
-                    return BlockStart.none();
-                }
+                  
+                blockParser = checkOpener(containerString, nextNonSpace, nextNonSpace);
             }
-            
+              
+            if (blockParser != null) {
+                blockParser.block.setStartFenceIndent(nextNonSpace);
+                return BlockStart.of(blockParser).atIndex(nextNonSpace + blockParser.block.getStartFenceLength());
+            } else {
+                return BlockStart.none();
+            }
         }
     }
 
@@ -259,44 +242,35 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
     // as the code block began with (backticks or tildes), and with at least as many backticks or tildes as the opening
     // code fence.
     private boolean isClosing(CharSequence line, int index) {
-//        boolean hasNewline = false;
-//        if(line.toString().endsWith("\n")) {
-//            hasNewline = true;
-//            line = line.subSequence(0, line.length() - 1);
-//        }
         char fenceChar = block.getFenceChar();
         int fenceLength = block.getStartFenceLength();
-        block.setEndFenceIndent(Parsing.skipSpaceTab(line, 0, line.length()));
+        
+        if(Parsing.IS_ROUNDTRIP) {
+            block.setEndFenceIndent(Parsing.skipSpaceTab(line, 0, line.length()));
+        }
+        
         int fences = Parsing.skip(fenceChar, line, index, line.length()) - index;
         if (fences < fenceLength) {
             return false;
         }
         
-        block.setEndFenceLength(fences);
+        if(Parsing.IS_ROUNDTRIP) {
+            block.setEndFenceLength(fences);
+        }
         
-//        StringBuilder whitespacePostFence = new StringBuilder(0);
-//        
-//        for(int i = 0; i < fences; i++) {
-//            whitespacePostFence.append(" ");
-//        }
-//        
-//        block.setWhitespacePostFence(whitespacePostFence.toString());
         // spec: The closing code fence [...] may be followed only by spaces, which are ignored.
         int after = Parsing.skipSpaceTab(line, index + fences, line.length());
         
-        // Raw text for a fence will never have newlines included during
-        //    parsing due to the processing needed to get here, so add
-        //    one manually to a fence that's known to be the closing fence
-        block.setWhitespacePostFence(
-                line.subSequence(after, line.length()).toString());
-        
-//        if(after == line.length()) {
-//            block.setWhitespacePostFence(line.length() - after);
-//            return true;
-//        }else {
-//            return false;
-//        }
-        
-        return after == line.length() - 1;
+        if(!Parsing.IS_ROUNDTRIP) {
+            return after == line.length();
+        }else {
+            // Raw text for a fence will never have newlines included during
+            //    parsing due to the processing needed to get here, so add
+            //    one manually to a fence that's known to be the closing fence
+            block.setWhitespacePostFence(
+                    line.subSequence(after, line.length()).toString());
+            
+            return after == line.length() - 1;
+        }
     }
 }

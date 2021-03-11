@@ -1,5 +1,7 @@
 package org.commonmark.internal;
 
+import org.commonmark.internal.util.Parsing;
+
 class BlockContent {
 
     private final StringBuilder sb;
@@ -15,9 +17,11 @@ class BlockContent {
     }
 
     public void add(CharSequence line) {
-//        if (lineCount != 0) {
-//            sb.append('\n');
-//        }
+        if(!Parsing.IS_ROUNDTRIP) {
+            if (lineCount != 0) {
+                sb.append('\n');
+            }
+        }
         sb.append(line);
         lineCount++;
     }

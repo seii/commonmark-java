@@ -1,8 +1,14 @@
 package org.commonmark.internal;
 
+import org.commonmark.internal.util.Parsing;
 import org.commonmark.node.Block;
 import org.commonmark.node.ThematicBreak;
-import org.commonmark.parser.block.*;
+import org.commonmark.parser.block.AbstractBlockParser;
+import org.commonmark.parser.block.AbstractBlockParserFactory;
+import org.commonmark.parser.block.BlockContinue;
+import org.commonmark.parser.block.BlockStart;
+import org.commonmark.parser.block.MatchedBlockParser;
+import org.commonmark.parser.block.ParserState;
 
 public class ThematicBreakParser extends AbstractBlockParser {
 
@@ -45,23 +51,25 @@ public class ThematicBreakParser extends AbstractBlockParser {
         
         @Override
         public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
+                    
             if (state.getIndent() >= 4) {
                 return BlockStart.none();
             }
             int nextNonSpace = state.getNextNonSpaceIndex();
             
             CharSequence line;
-            if(!(state instanceof DocumentRoundtripParser) || ((DocumentRoundtripParser)state).getContainerString() == null) {
+            if(!Parsing.IS_ROUNDTRIP || ((DocumentRoundtripParser)state).getContainerString() == null) {
                 line = state.getLine().getContent();
             }else {
                 line = ((DocumentRoundtripParser)state).getContainerString();
             }
             
-//            if(line.toString().endsWith("\n")) {
-//                line = line.subSequence(0, line.length() - 1);
-//            }
             if (isThematicBreak(line, nextNonSpace)) {
-                return BlockStart.of(new ThematicBreakParser(line)).atIndex(line.length());
+                if(!Parsing.IS_ROUNDTRIP) {
+                    return BlockStart.of(new ThematicBreakParser()).atIndex(line.length());
+                }else {
+                    return BlockStart.of(new ThematicBreakParser(line)).atIndex(line.length());
+                }
             } else {
                 return BlockStart.none();
             }

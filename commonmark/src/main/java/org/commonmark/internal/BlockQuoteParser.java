@@ -3,7 +3,12 @@ package org.commonmark.internal;
 import org.commonmark.internal.util.Parsing;
 import org.commonmark.node.Block;
 import org.commonmark.node.BlockQuote;
-import org.commonmark.parser.block.*;
+import org.commonmark.parser.block.AbstractBlockParser;
+import org.commonmark.parser.block.AbstractBlockParserFactory;
+import org.commonmark.parser.block.BlockContinue;
+import org.commonmark.parser.block.BlockStart;
+import org.commonmark.parser.block.MatchedBlockParser;
+import org.commonmark.parser.block.ParserState;
 
 public class BlockQuoteParser extends AbstractBlockParser {
 
@@ -70,17 +75,25 @@ public class BlockQuoteParser extends AbstractBlockParser {
         
         public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
             int nextNonSpace = state.getNextNonSpaceIndex();
-            int previousWhitespace = Parsing.skipSpaceTabBackwards(state.getLine().getContent(), nextNonSpace - 1, 0) + 1;
+            int previousWhitespace = -1;
+            
+            if(Parsing.IS_ROUNDTRIP) {
+                previousWhitespace = Parsing.skipSpaceTabBackwards(state.getLine().getContent(), nextNonSpace - 1, 0) + 1;
+            }
+            
             if (isMarker(state, nextNonSpace)) {
                 int newColumn = state.getColumn() + state.getIndent() + 1;
                 // optional following space or tab
                 if (Parsing.isSpaceOrTab(state.getLine().getContent(), nextNonSpace + 1)) {
                     newColumn++;
                 }
-//                return BlockStart.of(new BlockQuoteParser(nextNonSpace)).atColumn(newColumn);
-//                return BlockStart.of(new BlockQuoteParser(nextNonSpace)).atColumn(0);
-                return BlockStart.of(new BlockQuoteParser(nextNonSpace - previousWhitespace)).atColumn(newColumn);
-            } else {
+                
+                if(!Parsing.IS_ROUNDTRIP) {
+                    return BlockStart.of(new BlockQuoteParser()).atColumn(newColumn);
+                }else {
+                    return BlockStart.of(new BlockQuoteParser(nextNonSpace - previousWhitespace)).atColumn(newColumn);
+                }
+            }else {
                 return BlockStart.none();
             }
         }

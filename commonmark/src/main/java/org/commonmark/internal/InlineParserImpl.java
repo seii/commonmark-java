@@ -209,25 +209,6 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
      */
     private List<? extends Node> parseInline() {
         char c = scanner.peek();
-        
-//        if(c == Scanner.END && scanner.peekPrevious() == Scanner.END) {
-//        if(scanner.isBlankLine()) {
-////            c = '\n';
-////            scanner.next();
-////            return Collections.singletonList(parseLineBreak());
-////            return Collections.singletonList(parseText());
-//            Node test1 = parseText();
-//            Node test2 = parseLineBreak();
-//            ArrayList<Node> testList = new ArrayList<Node>();
-//            
-////            if(scanner.peek() != Scanner.END) {
-//                testList.add(test1);
-//                testList.add(test2);
-////            }else {
-////                testList.add(test1);
-////            }
-//            return Collections.unmodifiableList(testList);
-//        }
 
         switch (c) {
             case '[':
@@ -236,10 +217,14 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
                 return Collections.singletonList(parseBang());
             case ']':
                 return Collections.singletonList(parseCloseBracket());
-//            case '\n':
-//                return Collections.singletonList(parseLineBreak());
             case Scanner.END:
                 return null;
+        }
+        
+        if(c == '\n') {
+            if(!Parsing.IS_ROUNDTRIP) {
+                return Collections.singletonList(parseLineBreak());
+            }
         }
 
         // No inline parser, delimiter or other special handling.
@@ -256,7 +241,7 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
                 // When parsing to HTML it is correct to parse entities,
                 //    but the CommonMark spec shows raw CommonMark as
                 //    rendering only the literals, not the parsed entities
-                if(inlineParser instanceof EntityInlineParser) {
+                if(Parsing.IS_ROUNDTRIP && inlineParser instanceof EntityInlineParser) {
                     parsedInline = ParsedInline.none();
                 }else {
                     parsedInline = inlineParser.tryParse(this);
@@ -502,7 +487,9 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
                 int whitespace = scanner.whitespace();
                 // title needs a whitespace before
                 if (whitespace >= 1) {
-                    scanner.setPosition(beforeWhitespace);
+                    if(Parsing.IS_ROUNDTRIP) {
+                        scanner.setPosition(beforeWhitespace);
+                    }
                     title = parseLinkTitle(scanner);
                     scanner.whitespace();
                 }
@@ -630,19 +617,24 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
         if (!LinkScanner.scanLinkDestination(scanner)) {
             return null;
         }
-
-//        String dest;
-//        if (delimiter == '<') {
-//            // chop off surrounding <..>:
-//            String rawDestination = scanner.getSource(start, scanner.position()).getContent();
-//            dest = rawDestination.substring(1, rawDestination.length() - 1);
-//        } else {
-//            dest = scanner.getSource(start, scanner.position()).getContent();
-//        }
-        String dest = scanner.getSource(start, scanner.position()).getContent();
         
-//        return Escaping.unescapeString(dest);
-        return dest;
+        if(!Parsing.IS_ROUNDTRIP) {
+            String dest = "";
+            if (delimiter == '<') {
+                // chop off surrounding <..>:
+                String rawDestination = scanner.getSource(start, scanner.position()).getContent();
+                dest = rawDestination.substring(1, rawDestination.length() - 1);
+            } else {
+                dest = scanner.getSource(start, scanner.position()).getContent();
+            }
+      
+            return Escaping.unescapeString(dest);
+//            // spec: URL-escaping should be left alone inside the destination, as all URL-escaped
+//            //       characters are also valid URL characters
+//            return dest;
+        }else {
+            return scanner.getSource(start, scanner.position()).getContent();
+        }
     }
 
     /**
@@ -671,9 +663,13 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
 
         // chop off ', " or parens
         String rawTitle = scanner.getSource(start, scanner.position()).getContent();
-//        String title = rawTitle.substring(1, rawTitle.length() - 1);
-//        return Escaping.unescapeString(title);
-        return rawTitle;
+        
+        if(!Parsing.IS_ROUNDTRIP) {
+            String title = rawTitle.substring(1, rawTitle.length() - 1);
+            return Escaping.unescapeString(title);
+        }else {
+            return rawTitle;
+        }
     }
 
     /**
@@ -764,24 +760,24 @@ public class InlineParserImpl implements InlineParser, InlineParserState {
 
         SourceLines source = scanner.getSource(start, scanner.position());
         String content = source.getContent();
-
-        //TODO: Figure out why trailing spaces/tabs were being trimmed at all
-//        if (c == '\n') {
-//            // We parsed until the end of the line. Trim any trailing spaces and remember them (for hard line breaks).
-//            int end = Parsing.skipBackwards(' ', content, content.length() - 1, 0) + 1;
-//            trailingSpaces = content.length() - end;
-//            content = content.substring(0, end);
-//        } else if (c == Scanner.END) {
-//            // For the last line, both tabs and spaces are trimmed for some reason (checked with commonmark.js).
-//            int end = Parsing.skipSpaceTabBackwards(content, content.length() - 1, 0) + 1;
-//            content = content.substring(0, end);
-//        }
         
-        if (c == '\n') {
-          // We parsed until the end of the line. Trim any trailing spaces and remember them (for hard line breaks).
-          int end = Parsing.skipBackwards(' ', content, content.length() - 1, 0) + 1;
-          trailingSpaces = content.length() - end;
-//          content = content.substring(0, end);
+        if(!Parsing.IS_ROUNDTRIP) {
+          if (c == '\n') {
+              // We parsed until the end of the line. Trim any trailing spaces and remember them (for hard line breaks).
+              int end = Parsing.skipBackwards(' ', content, content.length() - 1, 0) + 1;
+              trailingSpaces = content.length() - end;
+              content = content.substring(0, end);
+          } else if (c == Scanner.END) {
+              // For the last line, both tabs and spaces are trimmed for some reason (checked with commonmark.js).
+              int end = Parsing.skipSpaceTabBackwards(content, content.length() - 1, 0) + 1;
+              content = content.substring(0, end);
+          }
+        }else {
+            if (c == '\n') {
+                // We parsed until the end of the line. Trim any trailing spaces and remember them (for hard line breaks).
+                int end = Parsing.skipBackwards(' ', content, content.length() - 1, 0) + 1;
+                trailingSpaces = content.length() - end;
+              }
         }
 
         Text text = new Text(content);

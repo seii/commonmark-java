@@ -134,8 +134,6 @@ public class ListBlockParser extends AbstractBlockParser {
                 contentColumn += Parsing.columnsToNextTabStop(contentColumn);
             } else if (c == ' ') {
                 contentColumn++;
-//            } else if (c == '\n') {
-//                contentColumn++;
             } else {
                 hasContent = true;
                 break;
@@ -153,10 +151,15 @@ public class ListBlockParser extends AbstractBlockParser {
             }
         }
 
-        if (!hasContent || (contentColumn - columnAfterMarker) > Parsing.CODE_BLOCK_INDENT) {
-//        if ((contentColumn - columnAfterMarker) > Parsing.CODE_BLOCK_INDENT) {
-            // If this line is blank or has a code block, default to 1 space after marker
-            contentColumn = columnAfterMarker + 1;
+        if(!Parsing.IS_ROUNDTRIP) {
+            if (!hasContent || (contentColumn - columnAfterMarker) > Parsing.CODE_BLOCK_INDENT) {
+                contentColumn = columnAfterMarker + 1;
+            }
+        }else {
+            if ((contentColumn - columnAfterMarker) > Parsing.CODE_BLOCK_INDENT) {
+                // If this line is blank or has a code block, default to 1 space after marker
+                contentColumn = columnAfterMarker + 1;
+            }
         }
 
         return new ListData(listBlock, contentColumn);
@@ -251,7 +254,9 @@ public class ListBlockParser extends AbstractBlockParser {
                         String number = line.subSequence(index, i).toString();
                         OrderedList orderedList = new OrderedList();
                         orderedList.setStartNumber(Integer.parseInt(number));
-                        orderedList.setRawNumber(number);
+                        if(Parsing.IS_ROUNDTRIP) {
+                            orderedList.setRawNumber(number);
+                        }
                         orderedList.setDelimiter(c);
                         return new ListMarkerData(orderedList, i + 1);
                     } else {
@@ -346,25 +351,33 @@ public class ListBlockParser extends AbstractBlockParser {
             }
 
             int newColumn = listData.contentColumn;
+            
             ListItemParser listItemParser = new ListItemParser(newColumn - state.getColumn());
-//            ListItemParser listItemParser = new ListItemParser(newColumn);
-            int preDelimiterWhitespaceIndex = Parsing.skipSpaceTabBackwards(state.getLine().getContent(), state.getNextNonSpaceIndex() - 1, 0) + 1;
-            listItemParser.setPreDelimiterWhitespace(state.getLine().substring(preDelimiterWhitespaceIndex, state.getNextNonSpaceIndex()).getContent().toString());
-
-            // prepend the list block if needed
-//            if (!(matched instanceof ListBlockParser) ||
-//                    !(listsMatch((ListBlock) matched.getBlock(), listData.listBlock))) {
-
+            int preDelimiterWhitespaceIndex = 0;
+            if(Parsing.IS_ROUNDTRIP) {
+                preDelimiterWhitespaceIndex = Parsing.skipSpaceTabBackwards(state.getLine().getContent(), state.getNextNonSpaceIndex() - 1, 0) + 1;
+                listItemParser.setPreDelimiterWhitespace(state.getLine().substring(preDelimiterWhitespaceIndex, state.getNextNonSpaceIndex()).getContent().toString());
+            }
+            
+            if(!Parsing.IS_ROUNDTRIP) {
+                // prepend the list block if needed
+                if (!(matched instanceof ListBlockParser) ||
+                        !(listsMatch((ListBlock) matched.getBlock(), listData.listBlock))) {
+                    ListBlockParser listBlockParser = new ListBlockParser(listData.listBlock);
+                    // We start out with assuming a list is tight. If we find a blank line, we set it to loose later.
+                    listData.listBlock.setTight(true);
+                    
+                    return BlockStart.of(listBlockParser, listItemParser).atColumn(newColumn);
+                }else {
+                    return BlockStart.of(listItemParser).atColumn(newColumn);
+                }
+            }else {
                 ListBlockParser listBlockParser = new ListBlockParser(listData.listBlock);
                 // We start out with assuming a list is tight. If we find a blank line, we set it to loose later.
                 listData.listBlock.setTight(true);
-
+                
                 return BlockStart.of(listBlockParser, listItemParser).atColumn(newColumn);
-//                return BlockStart.of(listBlockParser, listItemParser).atColumn(0);
-//            } else {
-//                return BlockStart.of(listItemParser).atColumn(newColumn);
-////                return BlockStart.of(listItemParser).atColumn(0);
-//            }
+            }
         }
     }
 

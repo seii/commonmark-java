@@ -1,11 +1,11 @@
 package org.commonmark.internal.inline;
 
-import org.commonmark.internal.util.Escaping;
-import org.commonmark.node.HardLineBreak;
-import org.commonmark.node.Node;
-import org.commonmark.node.Text;
-
 import java.util.regex.Pattern;
+
+import org.commonmark.internal.util.Escaping;
+import org.commonmark.internal.util.Parsing;
+import org.commonmark.node.HardLineBreak;
+import org.commonmark.node.Text;
 
 /**
  * Parse a backslash-escaped special character, adding either the escaped  character, a hard line break
@@ -37,7 +37,9 @@ public class BackslashInlineParser implements InlineContentParser {
     public ParsedInline tryParse(InlineParserState inlineParserState) {
         Scanner scanner = inlineParserState.scanner();
         // Backslash
-//        scanner.next();
+        if(!Parsing.IS_ROUNDTRIP) {
+            scanner.next();
+        }
 
         char next = scanner.peek();
         if (next == '\n') {

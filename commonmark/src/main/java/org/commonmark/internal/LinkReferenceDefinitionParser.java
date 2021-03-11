@@ -4,6 +4,7 @@ import org.commonmark.internal.inline.Position;
 import org.commonmark.internal.inline.Scanner;
 import org.commonmark.internal.util.Escaping;
 import org.commonmark.internal.util.LinkScanner;
+import org.commonmark.internal.util.Parsing;
 import org.commonmark.node.LinkReferenceDefinition;
 import org.commonmark.node.SourceSpan;
 import org.commonmark.parser.SourceLine;
@@ -124,9 +125,11 @@ public class LinkReferenceDefinitionParser {
         state = State.LABEL;
         label = new StringBuilder();
 
-//        if (!scanner.hasNext()) {
-//            label.append('\n');
-//        }
+        if(!Parsing.IS_ROUNDTRIP) {
+            if (!scanner.hasNext()) {
+                label.append('\n');
+            }
+        }
         return true;
     }
 
@@ -178,7 +181,9 @@ public class LinkReferenceDefinitionParser {
 
         if (!scanner.hasNext()) {
             // label might continue on next line
-//            label.append('\n');
+            if(!Parsing.IS_ROUNDTRIP) {
+                label.append('\n');
+            }
             return true;
         } else if (scanner.next(']')) {
             // end of label
@@ -191,16 +196,23 @@ public class LinkReferenceDefinitionParser {
                 return false;
             }
 
-//            String normalizedLabel = Escaping.normalizeLabelContent(label.toString());
-//            if (normalizedLabel.isEmpty()) {
-//                return false;
-//            }
-//
-//            this.normalizedLabel = normalizedLabel;
-            this.normalizedLabel = label.toString();
+            if(!Parsing.IS_ROUNDTRIP) {
+                String normalizedLabel = Escaping.normalizeLabelContent(label.toString());
+                if (normalizedLabel.isEmpty()) {
+                    return false;
+                }
+    
+                this.normalizedLabel = normalizedLabel;
+            }else {
+                this.normalizedLabel = label.toString();
+            }
+            
             state = State.DESTINATION;
-
-//            scanner.whitespace();
+            
+            if(!Parsing.IS_ROUNDTRIP) {
+                scanner.whitespace();
+            }
+            
             return true;
         } else {
             return false;
@@ -235,31 +247,34 @@ public class LinkReferenceDefinitionParser {
 //    }
     
     private boolean destination(Scanner scanner) {
-//      scanner.whitespace();
-      Position start = scanner.position();
-      if (!LinkScanner.scanLinkDestination(scanner)) {
-          return false;
-      }
+        if(!Parsing.IS_ROUNDTRIP) {
+            scanner.whitespace();
+        }
+        
+        Position start = scanner.position();
+        if (!LinkScanner.scanLinkDestination(scanner)) {
+            return false;
+        }
+        
+        String rawDestination = scanner.getSource(start, scanner.position()).getContent();
+        destination = rawDestination.startsWith("<") ?
+                rawDestination.substring(1, rawDestination.length() - 1) :
+                rawDestination;
 
-      String rawDestination = scanner.getSource(start, scanner.position()).getContent();
-      destination = rawDestination.startsWith("<") ?
-              rawDestination.substring(1, rawDestination.length() - 1) :
-              rawDestination;
-
-      int whitespace = scanner.whitespace();
-      if (!scanner.hasNext()) {
-          // Destination was at end of line, so this is a valid reference for sure (and maybe a title).
-          // If not at end of line, wait for title to be valid first.
-          referenceValid = true;
-          paragraphLines.clear();
-      } else if (whitespace == 0) {
-          // spec: The title must be separated from the link destination by whitespace
-          return false;
-      }
-
-      state = State.START_TITLE;
-      return true;
-  }
+        int whitespace = scanner.whitespace();
+        if (!scanner.hasNext()) {
+            // Destination was at end of line, so this is a valid reference for sure (and maybe a title).
+            // If not at end of line, wait for title to be valid first.
+            referenceValid = true;
+            paragraphLines.clear();
+        } else if (whitespace == 0) {
+            // spec: The title must be separated from the link destination by whitespace
+            return false;
+        }
+        
+        state = State.START_TITLE;
+        return true;
+    }
 
 //    private boolean startTitle(Scanner scanner) {
 //        scanner.whitespace();
@@ -296,7 +311,10 @@ public class LinkReferenceDefinitionParser {
 //    }
     
     private boolean startTitle(Scanner scanner) {
-//      scanner.whitespace();
+        if(!Parsing.IS_ROUNDTRIP) {
+            scanner.whitespace();
+        }
+        
       if (!scanner.hasNext()) {
           state = State.START_DEFINITION;
           return true;
@@ -304,14 +322,23 @@ public class LinkReferenceDefinitionParser {
 
       titleDelimiter = '\0';
       char c = scanner.peek();
-      switch (c) {
-//          case '"':
-//          case '\'':
-//              titleDelimiter = c;
-//              break;
-          case '(':
-              titleDelimiter = ')';
-              break;
+      
+      if(!Parsing.IS_ROUNDTRIP) {
+          switch (c) {
+            case '"':
+            case '\'':
+                titleDelimiter = c;
+                break;
+            case '(':
+                titleDelimiter = ')';
+                break;
+        }
+      }else {
+          switch(c) {
+              case '(':
+                  titleDelimiter = ')';
+                  break;
+          }
       }
 
       if (titleDelimiter != '\0') {
@@ -371,7 +398,9 @@ public class LinkReferenceDefinitionParser {
 
         if (!scanner.hasNext()) {
             // Title ran until the end of line, so continue on next line (until we find the delimiter)
-//            title.append('\n');
+            if(!Parsing.IS_ROUNDTRIP) {
+                title.append('\n');
+            }
             return true;
         }
 
@@ -414,11 +443,16 @@ public class LinkReferenceDefinitionParser {
         if (!referenceValid) {
             return;
         }
+        
+        LinkReferenceDefinition definition = null;
+        if(!Parsing.IS_ROUNDTRIP) {
+            String d = Escaping.unescapeString(destination);
+            String t = title != null ? Escaping.unescapeString(title.toString()) : null;
+            definition = new LinkReferenceDefinition(normalizedLabel, d, t);
+        }else {
+            definition = new LinkReferenceDefinition(normalizedLabel, destination, title.toString());
+        }
 
-//        String d = Escaping.unescapeString(destination);
-//        String t = title != null ? Escaping.unescapeString(title.toString()) : null;
-//        LinkReferenceDefinition definition = new LinkReferenceDefinition(normalizedLabel, d, t);
-        LinkReferenceDefinition definition = new LinkReferenceDefinition(normalizedLabel, destination, title.toString());
         definition.setSourceSpans(sourceSpans);
         sourceSpans.clear();
         definitions.add(definition);

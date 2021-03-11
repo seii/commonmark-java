@@ -18,6 +18,8 @@ public class Parsing {
     public static final String CLOSETAG = "</" + TAGNAME + "\\s*[>]";
 
     public static int CODE_BLOCK_INDENT = 4;
+    
+    public static boolean IS_ROUNDTRIP = false;
 
     public static int columnsToNextTabStop(int column) {
         // Tab stop is 4

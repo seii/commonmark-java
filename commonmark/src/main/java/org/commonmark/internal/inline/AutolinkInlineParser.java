@@ -1,10 +1,11 @@
 package org.commonmark.internal.inline;
 
+import java.util.regex.Pattern;
+
+import org.commonmark.internal.util.Parsing;
 import org.commonmark.node.Link;
 import org.commonmark.node.Text;
 import org.commonmark.parser.SourceLines;
-
-import java.util.regex.Pattern;
 
 /**
  * Attempt to parse an autolink (URL or email in pointy brackets).
@@ -64,7 +65,9 @@ public class AutolinkInlineParser implements InlineContentParser {
 
             if (destination != null) {
                 Link link = new Link(destination, null);
-                link.setAutolink(true);
+                if(Parsing.IS_ROUNDTRIP) {
+                    link.setAutolink(true);
+                }
                 Text text = new Text(content);
                 text.setSourceSpans(textSource.getSourceSpans());
                 link.appendChild(text);

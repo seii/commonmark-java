@@ -1,9 +1,10 @@
 package org.commonmark.parser;
 
-import org.commonmark.node.SourceSpan;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import org.commonmark.internal.util.Parsing;
+import org.commonmark.node.SourceSpan;
 
 /**
  * A set of lines ({@link SourceLine}) from the input source.
@@ -56,9 +57,11 @@ public class SourceLines {
     public String getContent() {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < lines.size(); i++) {
-//            if (i != 0) {
-//                sb.append('\n');
-//            }
+            if(!Parsing.IS_ROUNDTRIP) {
+                if (i != 0) {
+                    sb.append('\n');
+                }
+            }
             sb.append(lines.get(i).getContent());
         }
         return sb.toString();
