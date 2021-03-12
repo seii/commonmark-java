@@ -9,28 +9,28 @@ import org.commonmark.renderer.Renderer;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TextContentRoundtripRenderer implements Renderer {
+public class CommonMarkRenderer implements Renderer {
 
     private final boolean stripNewlines;
 
-    private final List<TextContentNodeRendererRoundtripFactory> nodeRendererFactories;
+    private final List<CommonmarkNodeRendererFactory> nodeRendererFactories;
 
-    private TextContentRoundtripRenderer(Builder builder) {
+    private CommonMarkRenderer(Builder builder) {
         this.stripNewlines = builder.stripNewlines;
 
         this.nodeRendererFactories = new ArrayList<>(builder.nodeRendererFactories.size() + 1);
         this.nodeRendererFactories.addAll(builder.nodeRendererFactories);
         // Add as last. This means clients can override the rendering of core nodes if they want.
-        this.nodeRendererFactories.add(new TextContentNodeRendererRoundtripFactory() {
+        this.nodeRendererFactories.add(new CommonmarkNodeRendererFactory() {
             @Override
-            public NodeRenderer create(TextContentNodeRendererRoundtripContext context) {
-                return new CoreTextContentNodeRoundtripRenderer(context);
+            public NodeRenderer create(CommonMarkNodeRendererContext context) {
+                return new CoreCommonMarkNodeRenderer(context);
             }
         });
     }
 
     /**
-     * Create a new builder for configuring an {@link TextContentRoundtripRenderer}.
+     * Create a new builder for configuring an {@link CommonMarkRenderer}.
      *
      * @return a builder
      */
@@ -40,7 +40,7 @@ public class TextContentRoundtripRenderer implements Renderer {
 
     @Override
     public void render(Node node, Appendable output) {
-        RendererContext context = new RendererContext(new TextContentRoundtripWriter(output));
+        RendererContext context = new RendererContext(new CommonMarkWriter(output));
         context.render(node);
     }
 
@@ -52,18 +52,18 @@ public class TextContentRoundtripRenderer implements Renderer {
     }
 
     /**
-     * Builder for configuring an {@link TextContentRoundtripRenderer}. See methods for default configuration.
+     * Builder for configuring an {@link CommonMarkRenderer}. See methods for default configuration.
      */
     public static class Builder {
 
         private boolean stripNewlines = false;
-        private List<TextContentNodeRendererRoundtripFactory> nodeRendererFactories = new ArrayList<>();
+        private List<CommonmarkNodeRendererFactory> nodeRendererFactories = new ArrayList<>();
 
         /**
-         * @return the configured {@link TextContentRoundtripRenderer}
+         * @return the configured {@link CommonMarkRenderer}
          */
-        public TextContentRoundtripRenderer build() {
-            return new TextContentRoundtripRenderer(this);
+        public CommonMarkRenderer build() {
+            return new CommonMarkRenderer(this);
         }
 
         /**
@@ -88,7 +88,7 @@ public class TextContentRoundtripRenderer implements Renderer {
          * @param nodeRendererFactory the factory for creating a node renderer
          * @return {@code this}
          */
-        public Builder nodeRendererFactory(TextContentNodeRendererRoundtripFactory nodeRendererFactory) {
+        public Builder nodeRendererFactory(CommonmarkNodeRendererFactory nodeRendererFactory) {
             this.nodeRendererFactories.add(nodeRendererFactory);
             return this;
         }
@@ -99,9 +99,9 @@ public class TextContentRoundtripRenderer implements Renderer {
          */
         public Builder extensions(Iterable<? extends Extension> extensions) {
             for (Extension extension : extensions) {
-                if (extension instanceof TextContentRoundtripRenderer.TextContentRendererExtension) {
-                    TextContentRoundtripRenderer.TextContentRendererExtension textContentRendererExtension =
-                            (TextContentRoundtripRenderer.TextContentRendererExtension) extension;
+                if (extension instanceof CommonMarkRenderer.TextContentRendererExtension) {
+                    CommonMarkRenderer.TextContentRendererExtension textContentRendererExtension =
+                            (CommonMarkRenderer.TextContentRendererExtension) extension;
                     textContentRendererExtension.extend(this);
                 }
             }
@@ -110,22 +110,22 @@ public class TextContentRoundtripRenderer implements Renderer {
     }
 
     /**
-     * Extension for {@link TextContentRoundtripRenderer}.
+     * Extension for {@link CommonMarkRenderer}.
      */
     public interface TextContentRendererExtension extends Extension {
-        void extend(TextContentRoundtripRenderer.Builder rendererBuilder);
+        void extend(CommonMarkRenderer.Builder rendererBuilder);
     }
 
-    private class RendererContext implements TextContentNodeRendererRoundtripContext {
-        private final TextContentRoundtripWriter textContentWriter;
+    private class RendererContext implements CommonMarkNodeRendererContext {
+        private final CommonMarkWriter textContentWriter;
         private final NodeRendererMap nodeRendererMap = new NodeRendererMap();
 
-        private RendererContext(TextContentRoundtripWriter textContentWriter) {
+        private RendererContext(CommonMarkWriter textContentWriter) {
             this.textContentWriter = textContentWriter;
 
             // The first node renderer for a node type "wins".
             for (int i = nodeRendererFactories.size() - 1; i >= 0; i--) {
-                TextContentNodeRendererRoundtripFactory nodeRendererFactory = nodeRendererFactories.get(i);
+                CommonmarkNodeRendererFactory nodeRendererFactory = nodeRendererFactories.get(i);
                 NodeRenderer nodeRenderer = nodeRendererFactory.create(this);
                 nodeRendererMap.add(nodeRenderer);
             }
@@ -137,7 +137,7 @@ public class TextContentRoundtripRenderer implements Renderer {
         }
 
         @Override
-        public TextContentRoundtripWriter getWriter() {
+        public CommonMarkWriter getWriter() {
             return textContentWriter;
         }
 

@@ -14,12 +14,6 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
 
     private String firstLine;
     private StringBuilder otherLines = new StringBuilder();
-
-//    public FencedCodeBlockParser(char fenceChar, int fenceLength, int fenceIndent) {
-//        block.setFenceChar(fenceChar);
-//        block.setFenceLength(fenceLength);
-//        block.setFenceIndent(fenceIndent);
-//    }
     
     public FencedCodeBlockParser(char fenceChar, int fenceLength, int fenceIndent) {
         block.setFenceChar(fenceChar);
@@ -37,26 +31,6 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
     public Block getBlock() {
         return block;
     }
-
-//    @Override
-//    public BlockContinue tryContinue(ParserState state) {
-//        int nextNonSpace = state.getNextNonSpaceIndex();
-//        int newIndex = state.getIndex();
-//        CharSequence line = state.getLine().getContent();
-//        if (state.getIndent() < Parsing.CODE_BLOCK_INDENT && nextNonSpace < line.length() && line.charAt(nextNonSpace) == block.getFenceChar() && isClosing(line, nextNonSpace)) {
-//            // closing fence - we're at end of line, so we can finalize now
-//            return BlockContinue.finished();
-//        } else {
-//            // skip optional spaces of fence indent
-//            int i = block.getFenceIndent();
-//            int length = line.length();
-//            while (i > 0 && newIndex < length && line.charAt(newIndex) == ' ') {
-//                newIndex++;
-//                i--;
-//            }
-//        }
-//        return BlockContinue.atIndex(newIndex);
-//    }
     
     @Override
     public BlockContinue tryContinue(ParserState state) {
@@ -72,6 +46,10 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
             int length = line.length();
             
             if(Parsing.IS_ROUNDTRIP) {
+                // spec: The closing code fence may be indented up to three spaces, and may be followed only by spaces, which are ignored.
+                // 
+                // (Note: The example in the spec makes it clear that these closing spaces are
+                //    valid when part of the AST, just not the rendered HTML.)
                 if(line.toString().matches(".*\\n$")) {
                     int lastNonNewlineChar = Parsing.skipBackwards('\n', line, length - 1, i);
                     block.setWhitespacePostFence(line.subSequence(lastNonNewlineChar + 1, line.length()).toString());
@@ -85,22 +63,13 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
         }
         return BlockContinue.atIndex(newIndex);
     }
-
-//    @Override
-//    public void addLine(SourceLine line) {
-//        if (firstLine == null) {
-//            firstLine = line.getContent().toString();
-//        } else {
-//            otherLines.append(line.getContent());
-//            otherLines.append('\n');
-//        }
-//    }
     
     public void addLine(SourceLine line) {      
       if (firstLine == null) {
           if(!Parsing.IS_ROUNDTRIP) {
               firstLine = line.getContent().toString();
           }else {
+              // Capture only the content for the AST, not its delimiters
               int lineEndPos = line.getContent().toString().length();
               int startPos = Parsing.skipSpaceTab(line.getContent(), 0, lineEndPos);
               if(line.getContent().charAt(startPos) == '`') {
@@ -120,13 +89,6 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
           }
       }
   }
-
-//    @Override
-//    public void closeBlock() {
-//        // first line becomes info string
-//        block.setInfo(unescapeString(firstLine.trim()));
-//        block.setLiteral(otherLines.toString());
-//    }
     
     @Override
     public void closeBlock() {
@@ -134,28 +96,13 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
         if(!Parsing.IS_ROUNDTRIP) {
             block.setInfo(unescapeString(firstLine.trim()));
         }else {
+            // AST is literal and does not escape characters
             block.setInfo(firstLine);
         }
         block.setLiteral(otherLines.toString());
     }
 
     public static class Factory extends AbstractBlockParserFactory {
-
-//        @Override
-//        public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
-//            int indent = state.getIndent();
-//            if (indent >= Parsing.CODE_BLOCK_INDENT) {
-//                return BlockStart.none();
-//            }
-//
-//            int nextNonSpace = state.getNextNonSpaceIndex();
-//            FencedCodeBlockParser blockParser = checkOpener(state.getLine().getContent(), nextNonSpace, indent);
-//            if (blockParser != null) {
-//                return BlockStart.of(blockParser).atIndex(nextNonSpace + blockParser.block.getFenceLength());
-//            } else {
-//                return BlockStart.none();
-//            }
-//        }
         
         @Override
         public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
@@ -171,6 +118,7 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
                 nextNonSpace = state.getNextNonSpaceIndex();
                 blockParser = checkOpener(state.getLine().getContent(), nextNonSpace, indent);
             }else {
+                // Get text without getting the delimiters too
                 String containerString = ((DocumentRoundtripParser)state).getContainerString();
                 nextNonSpace = Parsing.skipSpaceTab(containerString, 0, containerString.length());
                   
@@ -222,21 +170,6 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
             return null;
         }
     }
-
-//    // spec: The content of the code block consists of all subsequent lines, until a closing code fence of the same type
-//    // as the code block began with (backticks or tildes), and with at least as many backticks or tildes as the opening
-//    // code fence.
-//    private boolean isClosing(CharSequence line, int index) {
-//        char fenceChar = block.getFenceChar();
-//        int fenceLength = block.getFenceLength();
-//        int fences = Parsing.skip(fenceChar, line, index, line.length()) - index;
-//        if (fences < fenceLength) {
-//            return false;
-//        }
-//        // spec: The closing code fence [...] may be followed only by spaces, which are ignored.
-//        int after = Parsing.skipSpaceTab(line, index + fences, line.length());
-//        return after == line.length();
-//    }
     
     // spec: The content of the code block consists of all subsequent lines, until a closing code fence of the same type
     // as the code block began with (backticks or tildes), and with at least as many backticks or tildes as the opening
@@ -246,6 +179,7 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
         int fenceLength = block.getStartFenceLength();
         
         if(Parsing.IS_ROUNDTRIP) {
+            // AST: Capture how far ending fence is indented
             block.setEndFenceIndent(Parsing.skipSpaceTab(line, 0, line.length()));
         }
         
@@ -255,6 +189,7 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
         }
         
         if(Parsing.IS_ROUNDTRIP) {
+            // AST: Capture how long the ending fence is
             block.setEndFenceLength(fences);
         }
         
@@ -264,9 +199,8 @@ public class FencedCodeBlockParser extends AbstractBlockParser {
         if(!Parsing.IS_ROUNDTRIP) {
             return after == line.length();
         }else {
-            // Raw text for a fence will never have newlines included during
-            //    parsing due to the processing needed to get here, so add
-            //    one manually to a fence that's known to be the closing fence
+            // AST: Capture any whitespace (including newlines) after the closing
+            //      fence
             block.setWhitespacePostFence(
                     line.subSequence(after, line.length()).toString());
             

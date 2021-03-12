@@ -19,6 +19,8 @@ public class Parsing {
 
     public static int CODE_BLOCK_INDENT = 4;
     
+    // AST: A temporary workaround, will be removed when roundtrip code
+    //      is fully integrated
     public static boolean IS_ROUNDTRIP = false;
 
     public static int columnsToNextTabStop(int column) {

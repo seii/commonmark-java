@@ -35,14 +35,14 @@ import org.commonmark.renderer.NodeRenderer;
 /**
  * The node renderer that renders all the core nodes (comes last in the order of node renderers).
  */
-public class CoreTextContentNodeRoundtripRenderer extends AbstractVisitor implements NodeRenderer {
+public class CoreCommonMarkNodeRenderer extends AbstractVisitor implements NodeRenderer {
 
-    protected final TextContentNodeRendererRoundtripContext context;
-    private final TextContentRoundtripWriter textContent;
+    protected final CommonMarkNodeRendererContext context;
+    private final CommonMarkWriter textContent;
 
     private ListHolder listHolder;
 
-    public CoreTextContentNodeRoundtripRenderer(TextContentNodeRendererRoundtripContext context) {
+    public CoreCommonMarkNodeRenderer(CommonMarkNodeRendererContext context) {
         this.context = context;
         this.textContent = context.getWriter();
     }

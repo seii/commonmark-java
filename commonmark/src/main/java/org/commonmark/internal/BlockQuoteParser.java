@@ -58,20 +58,6 @@ public class BlockQuoteParser extends AbstractBlockParser {
     }
 
     public static class Factory extends AbstractBlockParserFactory {
-//        public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
-//            int nextNonSpace = state.getNextNonSpaceIndex();
-//            if (isMarker(state, nextNonSpace)) {
-//                int newColumn = state.getColumn() + state.getIndent() + 1;
-//                // optional following space or tab
-//                if (Parsing.isSpaceOrTab(state.getLine().getContent(), nextNonSpace + 1)) {
-//                    newColumn++;
-//                }
-//                return BlockStart.of(new BlockQuoteParser()).atColumn(newColumn);
-//            } else {
-//                return BlockStart.none();
-//            }
-//        }
-//    }
         
         public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
             int nextNonSpace = state.getNextNonSpaceIndex();

@@ -64,6 +64,17 @@ public class DocumentRoundtripParser implements ParserState {
     private int indent = 0;
     private boolean blank;
     
+    // Container blocks (block quotes and lists, mostly) by default include
+    //    their delimiters as part of the content they render. This leads to
+    //    scenarios where, for example, <pre>- list item</pre> gets rendered as
+    //    <pre>-- list item</pre> in roundtrip rendering. In order to prevent
+    //    this while also not breaking the current approach to rendering HTML,
+    //    it was necessary to either edit the <pre>line</pre> variable (and
+    //    its indexes, columns, etc.) in realtime - or just introduce a
+    //    tracking string instead. A tracking string was much simpler.
+    //    
+    //    For more information on how this gets calculated, see the
+    //    <pre>prepareContainerStartBlock()</pre> method in this class.
     private String containerString = null;
 
     private final List<BlockParserFactory> blockParserFactories;
@@ -135,6 +146,10 @@ public class DocumentRoundtripParser implements ParserState {
 
         String line = "";
         
+        // For parsing to an AST, it was much simpler to add
+        //    a newline back to <pre>readLine()</pre> output
+        //    instead of trying to decide when to add one or not
+        //    for every individual parsing decision later.
         while ((line = bufferedReader.readLine()) != null) {
             parseLine(line + "\n");
         }
@@ -293,22 +308,11 @@ public class DocumentRoundtripParser implements ParserState {
 
             if (!blockParser.isContainer()) {
                 addLine();
-//            } else if (!isBlank()) {
             }else {
                 // create paragraph container for line
                 ParagraphParser paragraphParser = new ParagraphParser();
                 addChild(new OpenBlockParser(paragraphParser, lastIndex));
                 addLine();
-//            } else {                
-                // This can happen for a list item like this:
-                // ```
-                // *
-                // list item
-                // ```
-                //
-                // The first line does not start a paragraph yet, but we still want to record source positions.
-                
-//                addSourceSpans();
             }
         }
     }
@@ -408,30 +412,13 @@ public class DocumentRoundtripParser implements ParserState {
      */
     private void addLine() {
         CharSequence content;
-//        if (columnIsInTab) {
-//            // Our column is in a partially consumed tab. Expand the remaining columns (to the next tab stop) to spaces.
-//            int afterTab = index + 1;
-//            CharSequence rest = line.getContent().subSequence(afterTab, line.getContent().length());
-//            int spaces = Parsing.columnsToNextTabStop(column);
-//            StringBuilder sb = new StringBuilder(spaces + rest.length());
-//            for (int i = 0; i < spaces; i++) {
-//                sb.append(' ');
-//            }
-//            sb.append(rest);
-//            content = sb.toString();
-//        } else if (index == 0) {
-//            content = line.getContent();
-//        } else {
-//            content = line.getContent().subSequence(index, line.getContent().length());
-//        } else {
-//            content = line.getContent();
-            if(containerString != null) {
-                content = containerString;
-            }else {
-                content = line.getContent();
-            }
-//            content = line.getContent().subSequence(postContainerDelimiterIndex, line.getContent().length());
-//        }
+        
+        if(containerString != null) {
+            content = containerString;
+        }else {
+            content = line.getContent();
+        }
+        
         SourceSpan sourceSpan = null;
         if (includeSourceSpans == IncludeSourceSpans.BLOCKS_AND_INLINES) {
             // Note that if we're in a partially-consumed tab, the length here corresponds to the content but not to the

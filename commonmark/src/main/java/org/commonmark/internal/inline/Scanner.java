@@ -194,7 +194,7 @@ public class Scanner {
     }
     
     /**
-     * Useful for checking what precisely is in the next series of whitespace
+     * Capture next series of whitespace
      * @return Consecutive whitespace as String, or empty String if no whitespace found
      */
     public String whitespaceAsString() {

@@ -34,20 +34,6 @@ public class ThematicBreakParser extends AbstractBlockParser {
     }
 
     public static class Factory extends AbstractBlockParserFactory {
-
-//        @Override
-//        public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
-//            if (state.getIndent() >= 4) {
-//                return BlockStart.none();
-//            }
-//            int nextNonSpace = state.getNextNonSpaceIndex();
-//            CharSequence line = state.getLine().getContent();
-//            if (isThematicBreak(line, nextNonSpace)) {
-//                return BlockStart.of(new ThematicBreakParser()).atIndex(line.length());
-//            } else {
-//                return BlockStart.none();
-//            }
-//        }
         
         @Override
         public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
@@ -61,6 +47,8 @@ public class ThematicBreakParser extends AbstractBlockParser {
             if(!Parsing.IS_ROUNDTRIP || ((DocumentRoundtripParser)state).getContainerString() == null) {
                 line = state.getLine().getContent();
             }else {
+                // AST: If this is a container block, capture the content
+                //      without any container block delimiters
                 line = ((DocumentRoundtripParser)state).getContainerString();
             }
             

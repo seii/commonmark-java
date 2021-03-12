@@ -2,13 +2,13 @@ package org.commonmark.renderer.roundtrip;
 
 import java.io.IOException;
 
-public class TextContentRoundtripWriter {
+public class CommonMarkWriter {
 
     private final Appendable buffer;
 
     private char lastChar;
 
-    public TextContentRoundtripWriter(Appendable out) {
+    public CommonMarkWriter(Appendable out) {
         buffer = out;
     }
 

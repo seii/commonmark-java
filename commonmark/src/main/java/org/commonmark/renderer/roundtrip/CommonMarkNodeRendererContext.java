@@ -2,7 +2,7 @@ package org.commonmark.renderer.roundtrip;
 
 import org.commonmark.node.Node;
 
-public interface TextContentNodeRendererRoundtripContext {
+public interface CommonMarkNodeRendererContext {
 
     /**
      * @return true for stripping new lines and render text as "single line",
@@ -13,7 +13,7 @@ public interface TextContentNodeRendererRoundtripContext {
     /**
      * @return the writer to use
      */
-    TextContentRoundtripWriter getWriter();
+    CommonMarkWriter getWriter();
 
     /**
      * Render the specified node and its children using the configured renderers. This should be used to render child
